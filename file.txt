@@ -1,0 +1,11 @@
+def fib(a)
+    if a < 2
+        then a
+        else fib(a - 1) + fib(a - 2)
+
+def makeneg(a)
+    if a > 0
+        then 0 - a
+        else a
+
+printI64(makeneg(fib(3*10)))
