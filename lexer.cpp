@@ -63,7 +63,7 @@ void lexer::lex_num(tok& ret)
 
 void lexer::lex_binop(tok& ret)
 {
-    std::string rstr;
+    //std::string rstr;
     ret.set_str(std::string(1, static_cast<char>(_last_char)));
     _last_char = _is.get();
     while(is_binop(_last_char) || _last_char == '=') {
@@ -71,10 +71,30 @@ void lexer::lex_binop(tok& ret)
         _last_char = _is.get();
     }
 
-    if(is_binop(ret.str()))
-        ret.set_type(tok::binop);
+    if(ret.str() == "+") {
+        ret.set_type(tok::add);
+    } else if(ret.str() == "-") {
+        ret.set_type(tok::sub);
+    } else if(ret.str() == "*") {
+        ret.set_type(tok::mul);
+    } else if(ret.str() == "/") {
+        ret.set_type(tok::div);
+    } else if(ret.str() == "<") {
+        ret.set_type(tok::lt);
+    } else if(ret.str() == ">") {
+        ret.set_type(tok::gt);
+    } else if(ret.str() == "<=") {
+        ret.set_type(tok::lte);
+    } else if(ret.str() == ">=") {
+        ret.set_type(tok::gte);
+    } else if(ret.str() == "==") {
+        ret.set_type(tok::eq);
+    }
+    /*if(is_binop(ret.str()))
+        ret.set_type(tok::binop);*/
     else
-        ret.set_type(_last_char);
+        ret.set_type(ret.str()[0]);
+        //ret.set_type(_last_char);
 }
 
 tok lexer::get_token()
@@ -90,8 +110,8 @@ tok lexer::get_token()
 
     if(_last_char == '-') {
         if(_cur_tok.type() == '(') { //unary- must follow lparen (-n)
-            ret.set_literal_signed(true);
-            _last_char = _is.get();
+            //ret.set_literal_signed(true);
+            //_last_char = _is.get();
             lex_num(ret);
             //std::cout << "lexed negative literal" << std::endl;
             return ret;

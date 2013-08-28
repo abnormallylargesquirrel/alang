@@ -6,112 +6,55 @@
 #include "parser.h"
 #include "jit_engine.h"
 #include "utils.h"
-//#include "symbol.h"
 
-/*
-LL(k)
-
-expr_int ::= "number"
-paren_expr ::= '(' expr ')'
-id_expr ::= "id"
-expr_var ::= id_expr
-
-primary ::= expr_int | paren_expr | id_expr
-binop_rhs ::= ('+' | '-' | '*' | '/' | '<' | '>' primary)*
-expr ::= primary binop_rhs | ""
-
-decl ::= 'decl' proto
-proto ::= id_expr '(' id_expr* ')'
-func ::= 'def' proto '{' expr '}'
-
-call ::= id_expr '(' expr* ')'
-
-toplvl ::= expr
-
-top ::= func | toplvl
-*/
-
-void handle_decl(parser& p, ast& root)
+void handle_decl(parser& p, jit_engine *je)
 {
-    if(shared_proto f = p.p_decl()) {
+    if(shared_proto proto = p.p_decl()) {
         //std::cout << "Parsed function declaration\n";
-        root.add_node(f);
+        //root.add_node(f);
+        proto->gen_func(je);
     } else {
         p.lex()->next_token();
     }
 }
 
-void handle_func(parser& p, ast& root)
+void handle_func(parser& p, jit_engine *je)
 {
-	if(shared_func f = p.p_func()) {
+	if(shared_func func = p.p_func()) {
 		//std::cout << "Parsed function definition\n";
-		root.add_node(f);
-        /*if(Function *lf = je.gen_func(f)) {
-            lf->dump();
-        }*/
+		//root.add_node(f);
+        func->gen_func(je);
 	} else {
 		p.lex()->next_token();
 	}
 }
 
-void handle_toplvl(parser& p, ast& root)
+void handle_toplvl(parser& p, jit_engine *je)
 {
-	if(shared_func t = p.p_top_lvl()) {
+	if(shared_func toplvl = p.p_top_lvl()) {
 		//std::cout << "Parsed top level expression\n";
-		root.add_node(t);
-        /*if(Function *lf = je.gen_func(t)) {
-            lf->dump();
-        }*/
+		//root.add_node(t);
+        toplvl->gen_func(je);
 	} else {
 		p.lex()->next_token();
 	}
 }
 
-
-/*std::string tree_to_str(const std::shared_ptr<ast>& node)
+/*void run(const std::shared_ptr<ast>& node, jit_engine* je)
 {
-	std::stringstream ss;
-	node->for_nodes([&](const std::shared_ptr<ast>& n) {
-            ss << "\n[" << n->to_str();
-            ss << ' ' << tree_to_str(n);
-            });
-	ss << ']';
-
-	return ss.str();
-}*/
-
-void run_jit(const std::shared_ptr<ast>& node, jit_engine& je)
-{
-    node->for_nodes([&](const std::shared_ptr<ast>& n){
-            if(n->node_type() == tok::def) {
-                if(!(*n)[0]->node_str().empty()) {
-                    if(!je.gen_func(n)) {
-                        std::cout << "Error: gen_func in tok::def" << std::endl;
-                        return;
-                    }
-                } else {
-                    if(Function *func = je.gen_func(n)) {
-                        void *pfunc = je.getPointerToFunction(func);
-                        std::int64_t (*fp)() = (std::int64_t (*)())pfunc;
-                        fp();
-                        je.freeMachineCodeForFunction(func);
-                    }
-                }
-            } else if(n->node_type() == tok::decl) {
-                if(!je.gen_func(n)) {
-                    std::cout << "Error: gen_func in tok::decl" << std::endl;
-                    return;
-                }
-            }
+    node->for_nodes([&](const std::shared_ptr<ast>& n) {
+            std::cout << n->to_str() << std::endl;
             run_jit(n, je);
+            if(!n->gen_func(je))
+                return;
             });
-}
+}*/
 
 int main()
 {
     std::ifstream ifs("file.txt");
     parser p(std::make_shared<lexer>(lexer(ifs)));
-	ast root;
+	//ast root;
 
     InitializeNativeTarget();
     jit_engine je;
@@ -123,22 +66,18 @@ int main()
 			is_eof = true;
 			break;
 		case tok::def:
-			handle_func(p, root);
+			handle_func(p, &je);
 			break;
         case tok::decl:
-            handle_decl(p, root);
+            handle_decl(p, &je);
             break;
-		case tok::var:
-		case tok::call:
-		case tok::proto:
-		case tok::literal_int:
 		default:
-			handle_toplvl(p, root);
+			handle_toplvl(p, &je);
 		}
 	}
 
-    je.run_pm();
-    run_jit(std::make_shared<ast>(root), je);
+    //je.run_pm();
+    //run(std::make_shared<ast>(root), &je);
     je.dump_module();
 	return 0;
 }

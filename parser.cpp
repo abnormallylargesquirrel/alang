@@ -12,6 +12,13 @@ shared_expr parser::p_expr_int()
 	return ret;
 }
 
+shared_expr parser::p_expr_float()
+{
+    auto ret = std::make_shared<expr_float>(expr_float(_lex->cur_tok()));
+    _lex->next_token();
+    return ret;
+}
+
 shared_expr parser::p_paren_expr()
 {
 	_lex->next_token(); //(
@@ -32,8 +39,8 @@ shared_expr parser::p_id_expr()
 	_lex->next_token(); //id
 
 	if(_lex->cur_tok().type() != '(') { //var
-		ret.set_type(tok::var);
-		return std::make_shared<ast_expr>(expr_var(ret, eval_t::integer));
+		//ret.set_type(tok::var);
+		return std::make_shared<expr_var>(expr_var(ret, eval_t::ev_int));
 	}
 
 	//call
@@ -59,24 +66,20 @@ shared_expr parser::p_id_expr()
 		}
 	}
 	
-	ret.set_type(tok::call);
+	//ret.set_type(tok::call);
 	_lex->next_token(); //)
-	return std::make_shared<ast_expr>(expr_call(ret, args, eval_t::integer));
+	return std::make_shared<expr_call>(expr_call(ret, args, eval_t::ev_int));
 }
 
 shared_expr parser::p_primary()
 {
 	switch(_lex->cur_tok().type()) {
-	case tok::id:
-		return p_id_expr();
-	case tok::literal_int:
-		return p_expr_int();
-    case tok::t_if:
-        return p_if();
-	case '(':
-		return p_paren_expr();
-	default:
-		return error("unknown token, expecting primary expression");
+	case tok::id: return p_id_expr();
+	case tok::literal_int: return p_expr_int();
+    case tok::literal_float: return p_expr_float();
+    case tok::t_if: return p_if();
+	case '(': return p_paren_expr();
+	default: return error("unknown token, expecting primary expression");
 	}
 }
 
@@ -92,25 +95,59 @@ shared_expr parser::p_expr()
 shared_expr parser::p_expr_binop(int expr_prec, shared_expr lhs)
 {
 	while(1) {
-		int tok_prec = tok_precedence();
+        tok ret = _lex->cur_tok();
+		int tok_prec = ret.prec();
+        /*std::cout << "expr_prec:" << expr_prec << std::endl;
+        std::cout << "type:" << ret.type() << std::endl;
+        std::cout << "prec:" << ret.prec() << std::endl;*/
 		if(tok_prec < expr_prec)
 			return lhs;
 
-		tok ret = _lex->cur_tok();
 		_lex->next_token(); //binop character
-		tok debug_ = _lex->cur_tok();
 
 		shared_expr rhs = p_primary();
 		if(!rhs)
-			return nullptr;
+			return error("could not parse rhs of binop expression");
 
-		int next_prec = tok_precedence();
+		int next_prec = _lex->cur_tok().prec();
 		if(tok_prec < next_prec) {
 			rhs = p_expr_binop(tok_prec + 1, rhs);
 			if(!rhs)
-				return nullptr;
+				return error("could not parse rhs of binop expression");
 		}
-		lhs = std::make_shared<ast_expr>(expr_binop(ret, lhs, rhs));
+
+        switch(ret.type()) {
+            case tok::add:
+                lhs = std::make_shared<binop_add>(binop_add(ret, lhs, rhs));
+                break;
+            case tok::sub:
+                lhs = std::make_shared<binop_sub>(binop_sub(ret, lhs, rhs));
+                break;
+            case tok::mul:
+                lhs = std::make_shared<binop_mul>(binop_mul(ret, lhs, rhs));
+                break;
+            case tok::div:
+                lhs = std::make_shared<binop_div>(binop_div(ret, lhs, rhs));
+                break;
+            case tok::lt:
+                lhs = std::make_shared<binop_lt>(binop_lt(ret, lhs, rhs));
+                break;
+            case tok::gt:
+                lhs = std::make_shared<binop_gt>(binop_gt(ret, lhs, rhs));
+                break;
+            case tok::lte:
+                lhs = std::make_shared<binop_lte>(binop_lte(ret, lhs, rhs));
+                break;
+            case tok::gte:
+                lhs = std::make_shared<binop_gte>(binop_gte(ret, lhs, rhs));
+                break;
+            case tok::eq:
+                lhs = std::make_shared<binop_eq>(binop_eq(ret, lhs, rhs));
+                break;
+            default:
+                return nullptr;
+        }
+		//lhs = std::make_shared<ast_expr>(expr_binop(ret, lhs, rhs));
 	}
 }
 
@@ -139,16 +176,16 @@ shared_expr parser::p_if()
     if(!elseexpr)
         return nullptr;
 
-    return std::make_shared<ast_expr>(expr_if(ret, cond, thenexpr, elseexpr));
+    return std::make_shared<expr_if>(expr_if(ret, cond, thenexpr, elseexpr));
 }
 
 shared_proto parser::p_decl()
 {
     _lex->next_token(); //'decl'
-    return p_proto(true);
+    return p_proto();
 }
 
-shared_proto parser::p_proto(bool is_decl)
+shared_proto parser::p_proto()
 {
 	if(_lex->cur_tok().type() != tok::id)
 		return error("expected id in prototype");
@@ -163,8 +200,8 @@ shared_proto parser::p_proto(bool is_decl)
 	std::vector<std::shared_ptr<expr_var>> args;
 	if(_lex->cur_tok().type() == tok::id) {
 		while(1) {
-			const_cast<tok&>(_lex->cur_tok()).set_type(tok::var);
-			args.push_back(std::make_shared<expr_var>(expr_var(_lex->cur_tok(), eval_t::integer)));
+			//const_cast<tok&>(_lex->cur_tok()).set_type(tok::var);
+			args.push_back(std::make_shared<expr_var>(expr_var(_lex->cur_tok(), eval_t::ev_int)));
 
 			_lex->next_token();
 			if(_lex->cur_tok().type() == ')') {
@@ -183,11 +220,11 @@ shared_proto parser::p_proto(bool is_decl)
 
 	_lex->next_token();
 
-    if(is_decl) {
-        ret.set_type(tok::decl);
+    /*if(is_decl) {
+        return std::make_shared<ast_proto>(proto_decl(ret, args));
     } else {
-	    ret.set_type(tok::proto);
-    }
+        return std::make_shared<ast_proto>(ast_proto(ret, args));
+    }*/
 	return std::make_shared<ast_proto>(ast_proto(ret, args));
 }
 
@@ -218,24 +255,8 @@ shared_func parser::p_func()
 shared_func parser::p_top_lvl()
 {
 	if(shared_expr e = p_expr()) {
-		shared_proto p = std::make_shared<ast_proto>(ast_proto(tok(tok::proto, ""), std::vector<std::shared_ptr<expr_var>>()));
-		return std::make_shared<ast_func>(ast_func(p, e));
+		shared_proto p = std::make_shared<proto_anon>(proto_anon(tok(tok::anon_proto, ""), std::vector<std::shared_ptr<expr_var>>()));
+		return std::make_shared<func_anon>(func_anon(p, e));
 	}
 	return nullptr;
-}
-
-int parser::tok_precedence()
-{
-	//int tok_type = _lex->cur_tok().type();
-    if(_lex->cur_tok().type() != tok::binop)
-        return -1;
-
-	//if(!is_ascii(tok_type))
-		//return -1;
-
-	int ret = _binop_precedence[_lex->cur_tok().str()[0]];
-	if(ret <= 0)
-		return -1;
-
-	return ret;
 }

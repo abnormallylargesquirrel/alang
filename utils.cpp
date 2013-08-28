@@ -39,10 +39,10 @@ bool is_cmp(int c)
     return false;
 }
 
-bool is_toplvl(int t)
+/*bool is_toplvl(int t)
 {
     if(t == tok::var || t == tok::call || t == tok::proto || t == tok::literal_int)
         return true;
 
     return false;
-}
+}*/
