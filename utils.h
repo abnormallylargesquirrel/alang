@@ -16,6 +16,8 @@ struct str_to_num {
 	}
 };
 
+extern bool error_called;
+
 //template<class T, class... Args>
 //std::unique_ptr<T> make_unique(Args&&... args);
 

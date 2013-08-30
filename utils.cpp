@@ -6,8 +6,11 @@ std::unique_ptr<T> make_unique(Args&&... args)
     return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }*/
 
+bool error_called = false;
+
 std::nullptr_t error(const std::string& str)
 {
+    error_called = true;
 	std::cout << "Error: " << str << std::endl;
 	return nullptr;
 }

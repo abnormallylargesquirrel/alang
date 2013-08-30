@@ -31,6 +31,7 @@ void handle_func(parser& p, jit_engine *je)
 
 void handle_toplvl(parser& p, jit_engine *je)
 {
+    //std::cout << "toplvl" << std::endl;
 	if(shared_func toplvl = p.p_top_lvl()) {
 		//std::cout << "Parsed top level expression\n";
 		//root.add_node(t);
@@ -72,6 +73,9 @@ int main()
             handle_decl(p, &je);
             break;
 		default:
+            if(error_called) {
+                return 1;
+            }
 			handle_toplvl(p, &je);
 		}
 	}

@@ -18,7 +18,8 @@ typedef std::shared_ptr<ast_expr> shared_expr;
 typedef std::shared_ptr<ast_proto> shared_proto;
 typedef std::shared_ptr<ast_func> shared_func;
 
-enum class eval_t {ev_invalid, ev_int, ev_float};
+enum class eval_t {ev_invalid, ev_void, ev_int64, ev_float};
+//enum class ret_t {invalid, ret_void, ret_int64, ret_float};
 
 class ast {
 public:
@@ -30,6 +31,9 @@ public:
     std::string node_str() const {return _tok.str();}
     int num_nodes() const {return static_cast<int>(_nodes.size());}
 	void add_node(const std::shared_ptr<ast>& c) {_nodes.push_back(c);}
+
+	eval_t eval_type() const {return _eval_type;}
+	void set_eval_type(eval_t type) {_eval_type = type;}
 
     const std::shared_ptr<ast>& operator[](unsigned int n) const {return _nodes[n];}
 
@@ -52,31 +56,26 @@ public:
 private:
 	tok _tok;
 	std::vector<std::shared_ptr<ast>> _nodes;
+	eval_t _eval_type;
 };
 
 class ast_expr : public ast {
 public:
-	ast_expr(const tok& token) : ast(token), _eval_type(eval_t::ev_invalid) {}
-	virtual ~ast_expr() {}
-
-	eval_t eval_type() const {return _eval_type;}
-	void set_eval_type(eval_t type) {_eval_type = type;}
+	ast_expr(const tok& token) : ast(token) {set_eval_type(eval_t::ev_invalid);}
 
 	virtual std::string to_str() const
 	{
-		if(_eval_type == eval_t::ev_int) {
-			return ast::to_str() + "<ev_int>";
+		if(eval_type() == eval_t::ev_int64) {
+			return ast::to_str() + "<ev_int64>";
 		}
 		return ast::to_str();
 	}
-private:
-	eval_t _eval_type;
 };
 
 class expr_int : public ast_expr { //tok::val_int
 public:
 	expr_int(const tok& token)
-		: ast_expr(token) {set_eval_type(eval_t::ev_int);}
+		: ast_expr(token) {set_eval_type(eval_t::ev_int64);}
 
     Value *gen_val(jit_engine *je)
     {
@@ -306,7 +305,7 @@ public:
 
 class func_anon : public ast_func {
 public:
-    func_anon(const shared_proto& proto, const shared_expr& body)
+    func_anon(const std::shared_ptr<proto_anon>& proto, const shared_expr& body)
         : ast_func(proto, body) {}
 
     Function *gen_func(jit_engine *je)

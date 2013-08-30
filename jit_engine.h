@@ -42,7 +42,9 @@ class binop_lte;
 class binop_gte;
 class binop_eq;
 class ast_proto;
+class proto_anon;
 class ast_func;
+class func_anon;
 
 std::nullptr_t error(const std::string& str);
 
@@ -74,20 +76,23 @@ public:
     Value *visitor_gen_val(const binop_gte *node);
     Value *visitor_gen_val(const binop_eq *node);
     Function *visitor_gen_func(const ast_proto *node);
+    Function *visitor_gen_func(const proto_anon *node);
     Function *visitor_gen_func(const ast_func *node);
+    Function *visitor_gen_func(const func_anon *node);
 
     jit_engine(const jit_engine& cp) = delete;
     const jit_engine& operator=(const jit_engine& rhs) = delete;
 private:
-    std::shared_ptr<Module> _module;
+    std::unique_ptr<Module> _module;
     IRBuilder<> _builder;
     PassManager _pm;
     FunctionPassManager _fpm;
     ExecutionEngine *_exec_engine;
     std::map<std::string, Value*> _named_values;
+    Function *build_proto(const ast_proto *node, Function *f);
+    Function *build_func(const ast_func *node);
 
     void init_alib();
-    void init_pm();
     void init_fpm();
 
     std::vector<Value*> nodes_to_vals(const ast *node);

@@ -26,31 +26,71 @@ void function(D *pD)
     std::cout << "functionD" << std::endl;
 }
 
-/*void function(E *pE)
+void function(E *pE)
 {
     std::cout << "functionE" << std::endl;
-}*/
+}
 
 struct B {
-    B(int n) {}
     virtual void func() {function(this);}
-    std::vector<int> v;
 };
 
 struct D : public B {
-    D(int n) : B(n) {v.push_back(0); v.push_back(1);}
     virtual void func() {function(this);}
 };
 
-struct E : public D {
-    E(int n) : D(n) {}
+struct E : public B {
     virtual void func() {function(this);}
 };
+
+int fib(int n)
+{
+    if(n < 2)
+        return n;
+    return fib(n - 1) + fib(n - 2);
+}
+
+int fib2(int n)
+{
+    int a = 0;
+    int b = 1;
+    int ret = 0;
+    if(n < 2)
+        return n;
+
+    for(int i = 1; i < n; i++) {
+        ret = a + b;
+        a = b;
+        b = ret;
+    }
+
+    return ret;
+}
+
+void function2(int n)
+{
+    std::cout << "int" << std::endl;
+}
+
+void function2(char n)
+{
+    std::cout << "char" << std::endl;
+}
+
+void function2(long n)
+{
+    std::cout << "long" << std::endl;
+}
 
 int main()
 {
-    B *pE = new E(2);
-    pE->func();
+    //D *pD = new D;
+    //reinterpret_cast<E*>(pD)->func();
+    long a = 100000;
+    char b = 100;
+
+    function2(a + b);
+    function2(b + a);
 
     return 0;
 }
