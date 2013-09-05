@@ -14,7 +14,7 @@ public:
 		_lex->next_token();
 
         _lookup_type["i64"] = eval_t::ev_int64;
-        _lookup_type["float"] = eval_t::ev_float;
+        _lookup_type["dbl"] = eval_t::ev_float;
         _lookup_type["void"] = eval_t::ev_void;
 
         /*_binop_precedence['='] = 5;
@@ -47,8 +47,13 @@ private:
 	//std::map<char, int> _binop_precedence;
     std::map<std::string, eval_t> _lookup_type;
     std::map<std::string, eval_t> _lookup_func_type;
+
+    std::map<std::string, eval_t> _lookup_var;
+
 	std::shared_ptr<lexer> _lex;
     eval_t lookup_type(const std::string& str);
+    eval_t lookup_var(const std::string& str);
+    std::shared_ptr<expr_var> p_proto_param(void);
 };
 
 #endif

@@ -5,7 +5,7 @@
 
 class tok {
 public:
-    //only use type in lexer/parser
+    //only used type in lexer/parser
 	static const int eof = -1;
 	static const int nil = -2;
 	static const int def = -3;

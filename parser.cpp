@@ -13,6 +13,14 @@ eval_t parser::lookup_type(const std::string& str)
     return _lookup_type[str];
 }
 
+eval_t parser::lookup_var(const std::string& str)
+{
+    if(_lookup_var.find(str) == _lookup_var.end())
+        return eval_t::ev_invalid;
+
+    return _lookup_var[str];
+}
+
 shared_expr parser::p_expr_int()
 {
 	auto ret = std::make_shared<expr_int>(expr_int(_lex->cur_tok()));
@@ -47,15 +55,16 @@ shared_expr parser::p_id_expr()
 	_lex->next_token(); //id
 
 	if(_lex->cur_tok().type() != '(') { //var
-		//ret.set_type(tok::var);
-		return std::make_shared<expr_var>(expr_var(ret, eval_t::ev_int64));
+        eval_t type = lookup_var(ret.str());
+        //if(type == eval_t::ev_invalid)
+            //return error("invalid type variable referenced");
+
+		//return std::make_shared<expr_var>(expr_var(ret, eval_t::ev_int64));
+        return std::make_shared<expr_var>(expr_var(ret, type));
 	}
 
 	//call
 	_lex->next_token(); //(
-    /*std::cout << _lex->cur_tok().type() << std::endl
-        << _lex->cur_tok().literal_signed() << std::endl
-        << _lex->cur_tok().to_str() << std::endl;*/
 	std::vector<shared_expr> args;
 	if(_lex->cur_tok().type() != ')') {
 		while(1) {
@@ -74,9 +83,7 @@ shared_expr parser::p_id_expr()
 		}
 	}
 	
-	//ret.set_type(tok::call);
 	_lex->next_token(); //)
-    //std::cout << ret.str() << std::endl;
     if(_lookup_func_type.find(ret.str()) != _lookup_func_type.end())
         return std::make_shared<expr_call>(expr_call(ret, args, _lookup_func_type[ret.str()]));
 
@@ -109,9 +116,7 @@ shared_expr parser::p_expr_binop(int expr_prec, shared_expr lhs)
 	while(1) {
         tok ret = _lex->cur_tok();
 		int tok_prec = ret.prec();
-        /*std::cout << "expr_prec:" << expr_prec << std::endl;
-        std::cout << "type:" << ret.type() << std::endl;
-        std::cout << "prec:" << ret.prec() << std::endl;*/
+
 		if(tok_prec < expr_prec)
 			return lhs;
 
@@ -159,7 +164,6 @@ shared_expr parser::p_expr_binop(int expr_prec, shared_expr lhs)
             default:
                 return nullptr;
         }
-		//lhs = std::make_shared<ast_expr>(expr_binop(ret, lhs, rhs));
 	}
 }
 
@@ -210,6 +214,20 @@ shared_proto parser::p_decl()
     return p;
 }
 
+std::shared_ptr<expr_var> parser::p_proto_param()
+{
+    eval_t type = lookup_type(_lex->cur_tok().str());
+    if(type == eval_t::ev_invalid) {
+        //return std::make_shared<expr_var>(expr_var(_lex->cur_tok(), eval_t::ev_template));
+        return error("invalid type specified in proto parameter");
+    }
+
+    if(_lex->next_token().type() != tok::id)
+        return error("unnamed parameter in proto");
+
+    return std::make_shared<expr_var>(expr_var(_lex->cur_tok(), type));
+}
+
 shared_proto parser::p_proto()
 {
 	if(_lex->cur_tok().type() != tok::id)
@@ -225,8 +243,11 @@ shared_proto parser::p_proto()
 	std::vector<std::shared_ptr<expr_var>> args;
 	if(_lex->cur_tok().type() == tok::id) {
 		while(1) {
-			//const_cast<tok&>(_lex->cur_tok()).set_type(tok::var);
-			args.push_back(std::make_shared<expr_var>(expr_var(_lex->cur_tok(), eval_t::ev_int64)));
+			//args.push_back(std::make_shared<expr_var>(expr_var(_lex->cur_tok(), eval_t::ev_int64)));
+            auto arg = p_proto_param();
+            _lookup_var[arg->node_str()] = arg->eval_type();
+
+			args.push_back(arg);
 
 			_lex->next_token();
 			if(_lex->cur_tok().type() == ')') {
@@ -243,22 +264,37 @@ shared_proto parser::p_proto()
 		}
 	}
 
+    /*bool params = false;
+    bool tparams = false;
+    for(const auto& i : args) {
+        if(i->eval_type() == eval_t::ev_template)
+            tparams = true;
+        else
+            params = true;
+    }
+
+    if(params && tparams)
+        return error("mixed template and non-template parameters in proto");*/
+
 	_lex->next_token();
 
-    /*if(is_decl) {
-        return std::make_shared<ast_proto>(proto_decl(ret, args));
-    } else {
-        return std::make_shared<ast_proto>(ast_proto(ret, args));
+    auto p = std::make_shared<ast_proto>(ast_proto(ret, args));
+    /*if(tparams) {
+        //return std::make_shared<proto_template>(proto_template(ret, args));
+        p->set_eval_type(eval_t::ev_template);
     }*/
-	return std::make_shared<ast_proto>(ast_proto(ret, args));
+
+	return p;
 }
 
 shared_func parser::p_func()
 {
 	_lex->next_token(); //def
-	shared_proto p = p_proto();
+    _lookup_var.clear();
+
+	auto p = p_proto();
 	if(!p)
-		return nullptr;
+		return error("failed to parse prototype after 'def'");
 
 	/*if(_lex->cur_tok().type() != '{')
 		return error("expected '{' in function definition");
@@ -267,12 +303,17 @@ shared_func parser::p_func()
 
 	auto e = p_expr();
 	if(!e)
-		return nullptr;
+		return error("failed to parse expression in function definition");
+
+    _lookup_var.clear();
+
+    /*if(p->eval_type() == eval_t::ev_template) {
+        _lookup_func_type[p->node_str()] = eval_t::ev_template;
+        return std::make_shared<func_template>(func_template(p, e));
+    }*/
 
     p->set_eval_type(e->eval_type());
     _lookup_func_type[p->node_str()] = p->eval_type();
-    //std::cout << static_cast<int>(_lookup_func_type[p->node_str()]) << '\n';
-    //std::cout << static_cast<int>(p->eval_type()) << std::endl;
 
 	/*if(_lex->cur_tok().type() != '}')
 		return error("expected '}' in function definition");

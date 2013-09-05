@@ -8,7 +8,7 @@ void printI64(std::int64_t n)
     std::cout << n << std::endl;
 }
 
-void printFP(double n)
+void printDbl(double n)
 {
     static bool first = true;
     if(first) {

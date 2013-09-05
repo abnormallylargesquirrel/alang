@@ -9,6 +9,7 @@
 #include <algorithm>
 #include "token.h"
 #include "jit_engine.h"
+#include "eval_t.h"
 
 class ast_expr;
 class ast_proto;
@@ -17,9 +18,6 @@ class ast_func;
 typedef std::shared_ptr<ast_expr> shared_expr;
 typedef std::shared_ptr<ast_proto> shared_proto;
 typedef std::shared_ptr<ast_func> shared_func;
-
-enum class eval_t {ev_invalid, ev_void, ev_int64, ev_float};
-//enum class ret_t {invalid, ret_void, ret_int64, ret_float};
 
 class ast {
 public:
@@ -46,8 +44,7 @@ public:
 	virtual std::string to_str() const
     {
 		std::stringstream ss;
-		ss << "<'" << _tok.str() << "'," << _tok.type();
-		ss << ">";
+		ss << "<'" << _tok.str() << "', " << _tok.type() << ", " << eval_strings[static_cast<int>(_eval_type)] << ">";
 		return ss.str();
     }
 
@@ -63,13 +60,13 @@ class ast_expr : public ast {
 public:
 	ast_expr(const tok& token) : ast(token) {set_eval_type(eval_t::ev_invalid);}
 
-	virtual std::string to_str() const
+	/*virtual std::string to_str() const
 	{
 		if(eval_type() == eval_t::ev_int64) {
 			return ast::to_str() + "<ev_int64>";
 		}
 		return ast::to_str();
-	}
+	}*/
 };
 
 class expr_int : public ast_expr { //tok::val_int
@@ -156,7 +153,10 @@ public:
 		auto t2 = rhs->eval_type();
 		if(t1 == t2) {
 			set_eval_type(t1);
-		}
+		} else if((t1 == eval_t::ev_int64 && t2 == eval_t::ev_float)
+                || (t1 == eval_t::ev_float && t2 == eval_t::ev_int64)) {
+            set_eval_type(eval_t::ev_int64);
+        }
 	}
 
     //Value *gen_val(jit_engine *je) {return je->visitor_gen_val(this);}
@@ -288,6 +288,17 @@ public:
     }
 };
 
+/*class proto_template : public ast_proto {
+public:
+    proto_template(const tok& token, const std::vector<std::shared_ptr<expr_var>>& args)
+        : ast_proto(token, args) {set_eval_type(eval_t::ev_template);}
+
+    Function *gen_func(jit_engine *je)
+    {
+        return je->visitor_gen_func(this);
+    }
+};*/
+
 class ast_func : public ast { //tok::def
 public:
 	ast_func(const shared_proto& proto, const shared_expr& body)
@@ -320,5 +331,17 @@ public:
         return nullptr;
     }
 };
+
+/*class func_template : public ast_func {
+public:
+    func_template(const std::shared_ptr<ast_proto>& proto, const shared_expr& body)
+        : ast_func(proto, body) {}
+
+    Function *gen_func(jit_engine *je)
+    {
+        //return je->visitor_gen_func(this);
+        return nullptr;
+    }
+};*/
 
 #endif

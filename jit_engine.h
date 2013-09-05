@@ -2,6 +2,7 @@
 #define CODEGEN_H
 
 #include <map>
+#include <stack>
 #include <cstdint>
 #include <sstream>
 #include <vector>
@@ -21,8 +22,8 @@
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/IPO.h>
 #include "utils.h"
-//#include "ast.h"
 #include "token.h"
+#include "eval_t.h"
 
 using namespace llvm;
 
@@ -43,8 +44,10 @@ class binop_gte;
 class binop_eq;
 class ast_proto;
 class proto_anon;
+//class proto_template;
 class ast_func;
 class func_anon;
+class func_template;
 
 std::nullptr_t error(const std::string& str);
 
@@ -77,8 +80,10 @@ public:
     Value *visitor_gen_val(const binop_eq *node);
     Function *visitor_gen_func(const ast_proto *node);
     Function *visitor_gen_func(const proto_anon *node);
+    //Function *visitor_gen_func(const proto_template *node);
     Function *visitor_gen_func(const ast_func *node);
     Function *visitor_gen_func(const func_anon *node);
+    Function *visitor_gen_func(const func_template *node);
 
     jit_engine(const jit_engine& cp) = delete;
     const jit_engine& operator=(const jit_engine& rhs) = delete;
@@ -88,14 +93,27 @@ private:
     PassManager _pm;
     FunctionPassManager _fpm;
     ExecutionEngine *_exec_engine;
+
     std::map<std::string, Value*> _named_values;
+    //std::map<std::string, std::shared_ptr<func_template>> _templates;
+    std::map<std::string, eval_t> _lookup_var;
+    std::map<int, Type*> _lookup_llvm_type;
+    //std::stack<BasicBlock*> _func_blocks;
+
+    eval_t lookup_var(const std::string& str);
+    Type* lookup_type(int n);
+    eval_t resolve_types(const std::shared_ptr<ast>& node);
+    //std::shared_ptr<func_template> lookup_template(const std::string& str);
+
     Function *build_proto(const ast_proto *node, Function *f);
     Function *build_func(const ast_func *node);
+    void cast_int64(Value*& v);
+    void cast_float(Value*& v);
 
     void init_alib();
     void init_fpm();
 
-    std::vector<Value*> nodes_to_vals(const ast *node);
+    std::vector<Value*> nodes_to_vals(const ast *node, bool do_cast = false);
 
     str_to_num<std::int64_t> _str_to_i64;
     str_to_num<double> _str_to_double;

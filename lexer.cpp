@@ -27,11 +27,14 @@ void lexer::lex_id(tok& ret)
     }
 }
 
-void lexer::lex_num(tok& ret)
+void lexer::lex_num(tok& ret, bool is_signed)
 {
     int num_type;
     std::string num_str;
     bool point_found = false;
+
+    if(is_signed)
+        num_str += '-';
 
     while(std::isdigit(_last_char) || _last_char == '.') {
         if(_last_char == '.') {
@@ -108,15 +111,15 @@ tok lexer::get_token()
         return ret;
     }
 
-    if(_last_char == '-') {
+    /*if(_last_char == '-') {
         if(_cur_tok.type() == '(') { //unary- must follow lparen (-n)
             //ret.set_literal_signed(true);
-            //_last_char = _is.get();
-            lex_num(ret);
+            _last_char = _is.get();
+            lex_num(ret, true);
             //std::cout << "lexed negative literal" << std::endl;
             return ret;
         }
-    }
+    }*/
 
     if(std::isdigit(_last_char)) {
         lex_num(ret);

@@ -15,7 +15,7 @@ public:
 
 private:
 	tok get_token(void);
-    void lex_num(tok& ret);
+    void lex_num(tok& ret, bool is_signed = false);
     void lex_binop(tok& ret);
     void lex_id(tok& ret);
 

@@ -84,13 +84,9 @@ void function2(long n)
 
 int main()
 {
-    //D *pD = new D;
-    //reinterpret_cast<E*>(pD)->func();
-    long a = 100000;
-    char b = 100;
-
-    function2(a + b);
-    function2(b + a);
+    B *pD = new D;
+    pD->func();
+    function(pD);
 
     return 0;
 }
