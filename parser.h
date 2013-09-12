@@ -5,26 +5,12 @@
 #include <sstream>
 #include "ast.h"
 #include "lexer.h"
+#include "func_manager.h"
 
 class parser {
 public:
-	parser(const std::shared_ptr<lexer>& lex)
-	{
-		_lex = lex;
-		_lex->next_token();
-
-        _lookup_type["i64"] = eval_t::ev_int64;
-        _lookup_type["dbl"] = eval_t::ev_float;
-        _lookup_type["void"] = eval_t::ev_void;
-
-        /*_binop_precedence['='] = 5;
-		_binop_precedence['<'] = 10;
-		_binop_precedence['>'] = 10;
-		_binop_precedence['+'] = 20;
-		_binop_precedence['-'] = 20;
-		_binop_precedence['*'] = 40;
-		_binop_precedence['/'] = 40;*/
-	}
+	parser(const std::shared_ptr<lexer>& lex, const std::shared_ptr<func_manager>& fm)
+        : _lex(lex), _fm(fm) {_lex->next_token();}
 
 	std::shared_ptr<lexer> lex() {return _lex;}
 
@@ -41,18 +27,9 @@ public:
 	shared_func p_func(void);
 	shared_func p_top_lvl(void);
 
-	//int tok_precedence(void);
-
 private:
-	//std::map<char, int> _binop_precedence;
-    std::map<std::string, eval_t> _lookup_type;
-    std::map<std::string, eval_t> _lookup_func_type;
-
-    std::map<std::string, eval_t> _lookup_var;
-
 	std::shared_ptr<lexer> _lex;
-    eval_t lookup_type(const std::string& str);
-    eval_t lookup_var(const std::string& str);
+	std::shared_ptr<func_manager> _fm;
     std::shared_ptr<expr_var> p_proto_param(void);
 };
 

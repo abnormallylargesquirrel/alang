@@ -24,6 +24,7 @@
 #include "utils.h"
 #include "token.h"
 #include "eval_t.h"
+#include "func_manager.h"
 
 using namespace llvm;
 
@@ -44,7 +45,6 @@ class binop_gte;
 class binop_eq;
 class ast_proto;
 class proto_anon;
-//class proto_template;
 class ast_func;
 class func_anon;
 class func_template;
@@ -53,10 +53,7 @@ std::nullptr_t error(const std::string& str);
 
 class jit_engine {
 public:
-    jit_engine();
-
-    //Value *gen_val(const std::shared_ptr<ast>& node);
-    //Function *gen_func(const std::shared_ptr<ast>& node);
+    jit_engine(const std::shared_ptr<func_manager>& fm);
 
     bool run_pm() {return _pm.run(*_module);}
 
@@ -67,7 +64,7 @@ public:
     Value *visitor_gen_val(const expr_float *node);
     Value *visitor_gen_val(const expr_int *node);
     Value *visitor_gen_val(const expr_var *node);
-    Value *visitor_gen_val(const expr_call *node);
+    Value *visitor_gen_val(expr_call *node);
     Value *visitor_gen_val(const expr_if *node);
     Value *visitor_gen_val(const binop_add *node);
     Value *visitor_gen_val(const binop_sub *node);
@@ -80,10 +77,9 @@ public:
     Value *visitor_gen_val(const binop_eq *node);
     Function *visitor_gen_func(const ast_proto *node);
     Function *visitor_gen_func(const proto_anon *node);
-    //Function *visitor_gen_func(const proto_template *node);
     Function *visitor_gen_func(const ast_func *node);
     Function *visitor_gen_func(const func_anon *node);
-    Function *visitor_gen_func(const func_template *node);
+    //Function *visitor_gen_func(func_template *node);
 
     jit_engine(const jit_engine& cp) = delete;
     const jit_engine& operator=(const jit_engine& rhs) = delete;
@@ -94,15 +90,14 @@ private:
     FunctionPassManager _fpm;
     ExecutionEngine *_exec_engine;
 
+    std::shared_ptr<func_manager> _fm;
+
     std::map<std::string, Value*> _named_values;
-    //std::map<std::string, std::shared_ptr<func_template>> _templates;
-    std::map<std::string, eval_t> _lookup_var;
-    std::map<int, Type*> _lookup_llvm_type;
+    //std::map<std::string, std::shared_ptr<func_template>> _template_funcs;
+    std::map<eval_t, Type*> _lookup_llvm_type;
     //std::stack<BasicBlock*> _func_blocks;
 
-    eval_t lookup_var(const std::string& str);
-    Type* lookup_type(int n);
-    eval_t resolve_types(const std::shared_ptr<ast>& node);
+    Type* lookup_llvm_type(eval_t t);
     //std::shared_ptr<func_template> lookup_template(const std::string& str);
 
     Function *build_proto(const ast_proto *node, Function *f);

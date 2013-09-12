@@ -5,6 +5,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "jit_engine.h"
+#include "func_manager.h"
 #include "utils.h"
 
 void handle_decl(parser& p, jit_engine *je)
@@ -51,17 +52,23 @@ void handle_toplvl(parser& p, jit_engine *je)
             });
 }*/
 
-int main()
+int main(int argc, char **argv)
 {
+    bool dump_module = false;
+    if(argc > 1) {
+        if(!strcmp(argv[1], "-s"))
+            dump_module = true;
+    }
+    //func_manager fm;
+    auto fm = std::make_shared<func_manager>(func_manager());
     std::ifstream ifs("file.txt");
-    parser p(std::make_shared<lexer>(lexer(ifs)));
-	//ast root;
+    parser p(std::make_shared<lexer>(lexer(ifs)), fm);
 
     InitializeNativeTarget();
-    jit_engine je;
+    jit_engine je(fm); //must follow InitializeNativeTarget()
 
 	bool is_eof = false;
-	while(!is_eof) {
+	while(!is_eof && !error_called) {
 		switch(p.lex()->cur_tok().type()) {
 		case tok::eof:
 			is_eof = true;
@@ -73,15 +80,16 @@ int main()
             handle_decl(p, &je);
             break;
 		default:
-            if(error_called) {
+            /*if(error_called) {
                 return 1;
-            }
+            }*/
 			handle_toplvl(p, &je);
 		}
 	}
 
     //je.run_pm();
     //run(std::make_shared<ast>(root), &je);
-    je.dump_module();
+    if(dump_module)
+        je.dump_module();
 	return 0;
 }

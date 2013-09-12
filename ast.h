@@ -332,16 +332,16 @@ public:
     }
 };
 
-/*class func_template : public ast_func {
+class func_template : public ast_func {
 public:
     func_template(const std::shared_ptr<ast_proto>& proto, const shared_expr& body)
         : ast_func(proto, body) {}
 
-    Function *gen_func(jit_engine *je)
+    Function *gen_func(jit_engine*)
     {
         //return je->visitor_gen_func(this);
         return nullptr;
     }
-};*/
+};
 
 #endif
