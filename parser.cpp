@@ -39,11 +39,12 @@ shared_expr parser::p_id_expr()
 	_lex->next_token(); //id
 
 	if(_lex->cur_tok().type() != '(') { //var
-        eval_t type = _fm->lookup_var(ret.str());
+        //eval_t type = _fm->lookup_var(ret.str());
+
         //if(type == eval_t::ev_invalid)
             //return error("invalid type variable referenced");
 
-        return std::make_shared<expr_var>(expr_var(ret, type));
+        return std::make_shared<expr_var>(expr_var(ret, eval_t::ev_template/*type*/));
 	}
 
 	//call
@@ -183,19 +184,9 @@ shared_expr parser::p_if()
 shared_proto parser::p_decl()
 {
     _lex->next_token(); //'decl'
-    if(_lex->cur_tok().type() != tok::id)
-        return error("expected return type in forward function declaration");
 
-    eval_t type = _fm->lookup_type(_lex->cur_tok().str());
-    if(type == eval_t::ev_invalid)
-        return error("invalid type specified in forward function declaration");
-
-    _lex->next_token();
     auto p = p_proto();
-
-    p->set_eval_type(type);
-    _fm->set_func_type(p->node_str(), type);
-
+    _fm->set_func_type(p->node_str(), p->eval_type());
     return p;
 }
 
@@ -224,13 +215,14 @@ shared_proto parser::p_proto()
 	if(_lex->next_token().type() != '(')
 		return error("expected '(' in prototype");
 
-	_lex->next_token();
+	_lex->next_token(); //(
 
 	std::vector<std::shared_ptr<expr_var>> args;
 	if(_lex->cur_tok().type() == tok::id) {
 		while(1) {
             auto arg = p_proto_param();
-            _fm->set_var(arg->node_str(), arg->eval_type());
+            //_fm->set_var(arg->node_str(), arg->eval_type());
+            //std::cout << eval_strings[static_cast<int>(arg->eval_type())] << ":" << std::endl;
 
 			args.push_back(arg);
 
@@ -249,7 +241,7 @@ shared_proto parser::p_proto()
 		}
 	}
 
-    bool params = false;
+    /*bool params = false;
     bool tparams = false;
     for(const auto& i : args) {
         if(i->eval_type() == eval_t::ev_template)
@@ -259,26 +251,53 @@ shared_proto parser::p_proto()
     }
 
     if(params && tparams)
-        return error("mixed template and non-template parameters in proto");
+        return error("mixed template and non-template parameters in proto");*/
 
-	_lex->next_token();
+	if(_lex->next_token().type() != ':')
+        return error("expected ':' & return type at end of proto");
+
+	if(_lex->next_token().type() != tok::id)
+        return error("expected return type at end of proto");
+
+    eval_t ret_type = _fm->lookup_type(_lex->cur_tok().str());
+    if(ret_type == eval_t::ev_invalid)
+        return error("invalid return type specified at end of proto");
+
+    _lex->next_token();
 
     auto p = std::make_shared<ast_proto>(ast_proto(ret, args));
-    if(tparams) {
+    /*if(tparams) {
         //return std::make_shared<proto_template>(proto_template(ret, args));
         p->set_eval_type(eval_t::ev_template);
     } else {
         p->set_eval_type(eval_t::ev_invalid);
-    }
+    }*/
+    p->set_eval_type(ret_type);
 
 	return p;
+}
+
+bool parser::is_template_proto(const shared_proto& p)
+{
+    bool params = false;
+    bool tparams = false;
+    p->for_nodes([&](const std::shared_ptr<ast>& n) {
+            if(n->eval_type() == eval_t::ev_template)
+                tparams = true;
+            else
+                params = true;
+            });
+
+    if(params && tparams)
+        error("mixed template and non-template parameters in proto");
+
+    return tparams;
 }
 
 shared_func parser::p_func()
 {
 	_lex->next_token(); //def
-    //_lookup_var.clear();
-    _fm->clear_vars();
+    //_fm->clear_vars();
 
 	auto p = p_proto();
 	if(!p)
@@ -293,12 +312,11 @@ shared_func parser::p_func()
 	if(!e)
 		return error("failed to parse expression in function definition");
 
-    //_lookup_var.clear();
-    _fm->clear_vars();
+    //_fm->clear_vars();
 
-    if(p->eval_type() == eval_t::ev_template) {
-        _fm->set_func_type(p->node_str(), eval_t::ev_template);
+    _fm->set_func_type(p->node_str(), p->eval_type());
 
+    if(is_template_proto(p)) {
         auto f = std::make_shared<func_template>(func_template(p, e));
 
         if(_fm->lookup_template(((*f)[0])->node_str()) != nullptr)
@@ -309,15 +327,10 @@ shared_func parser::p_func()
         return f;
     }
 
-    p->set_eval_type(e->eval_type());
-    //_lookup_func_type[p->node_str()] = p->eval_type();
-    _fm->set_func_type(p->node_str(), p->eval_type());
-
 	/*if(_lex->cur_tok().type() != '}')
 		return error("expected '}' in function definition");
 
 	_lex->next_token(); //}*/
-
 	return std::make_shared<ast_func>(ast_func(p, e));
 }
 

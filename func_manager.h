@@ -3,10 +3,13 @@
 
 #include <map>
 #include <memory>
+#include <llvm/IR/Function.h>
 #include "eval_t.h"
 //#include "ast.h"
 
 class ast;
+class expr_call;
+class expr_if;
 class func_template;
 
 class func_manager {
@@ -14,45 +17,26 @@ public:
     func_manager()
     {
         _lookup_type["i64"] = eval_t::ev_int64;
-        _lookup_type["dbl"] = eval_t::ev_float;
+        _lookup_type["float"] = eval_t::ev_float;
         _lookup_type["void"] = eval_t::ev_void;
     }
 
     eval_t lookup_type(const std::string& str)
     {
-        if(_lookup_type.find(str) == _lookup_type.end())
-            return eval_t::ev_invalid;
+        auto it = _lookup_type.find(str);
+        if(it != _lookup_type.end())
+            return it->second;
 
-        return _lookup_type[str];
-    }
-
-    eval_t lookup_var(const std::string& str)
-    {
-        if(_lookup_var.find(str) == _lookup_var.end())
-            return eval_t::ev_invalid;
-
-        return _lookup_var[str];
+        return eval_t::ev_invalid;
     }
 
     eval_t lookup_func_type(const std::string& str)
     {
-        if(_lookup_func_type.find(str) == _lookup_func_type.end())
-            return eval_t::ev_invalid;
+        auto it = _lookup_func_type.find(str);
+        if(it != _lookup_func_type.end())
+            return it->second;
 
-        return _lookup_func_type[str];
-    }
-
-    std::shared_ptr<func_template> lookup_template(const std::string& str)
-    {
-        if(_lookup_template.find(str) == _lookup_template.end())
-            return nullptr;
-
-        return _lookup_template[str];
-    }
-
-    void set_var(const std::string& str, eval_t t)
-    {
-        _lookup_var[str] = t;
+        return eval_t::ev_invalid;
     }
 
     void set_func_type(const std::string& str, eval_t t)
@@ -60,25 +44,59 @@ public:
         _lookup_func_type[str] = t;
     }
 
-    void set_template(const std::string& str, const std::shared_ptr<func_template> f)
+    llvm::Function *lookup_func(const std::string& str)
+    {
+        auto it = _lookup_func.find(str);
+        if(it != _lookup_func.end())
+            return it->second;
+
+        return nullptr;
+    }
+
+    void set_func(const std::string& str, llvm::Function *f)
+    {
+        _lookup_func[str] = f;
+    }
+
+    std::shared_ptr<func_template> lookup_template(const std::string& str)
+    {
+        auto it = _lookup_template.find(str);
+        if(it != _lookup_template.end())
+            return it->second;
+
+        return nullptr;
+    }
+
+    void set_template(const std::string& str, const std::shared_ptr<func_template>& f)
     {
         _lookup_template[str] = f;
     }
 
-    void clear_vars(void)
+    std::string func_alias(const std::string& caller_name, const std::string& callee_name)
     {
-        _lookup_var.clear();
+        auto it = _func_alias.find(caller_name);
+        if(it == _func_alias.end())
+            return std::string();
+
+        auto it2 = it->second.find(callee_name);
+        if(it2 == it->second.end())
+            return std::string();
+
+        return it2->second;
     }
 
-    eval_t resolve_types(const std::shared_ptr<ast>& node);
-    std::string mangle_name(const ast *node);
-    std::string mangle_name(const std::shared_ptr<ast>& node);
+    void set_func_alias(const std::string& caller_name, const std::string& callee_name, const std::string& replacement)
+    {
+        (_func_alias[caller_name])[callee_name] = replacement;
+    }
 
+    std::string mangle_name(const ast& node);
 private:
     std::map<std::string, eval_t> _lookup_type;
     std::map<std::string, eval_t> _lookup_func_type;
-    std::map<std::string, eval_t> _lookup_var;
     std::map<std::string, std::shared_ptr<func_template>> _lookup_template;
+    std::map<std::string, llvm::Function*> _lookup_func;
+    std::map<std::string, std::map<std::string, std::string>> _func_alias;
 };
 
 #endif

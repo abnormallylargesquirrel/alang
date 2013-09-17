@@ -9,6 +9,7 @@
 #include <algorithm>
 #include "token.h"
 #include "jit_engine.h"
+#include "func_manager.h"
 #include "eval_t.h"
 
 class ast_expr;
@@ -48,8 +49,10 @@ public:
 		return ss.str();
     }
 
-    virtual Value *gen_val(jit_engine*) {return nullptr;}
-    virtual Function *gen_func(jit_engine*) {return nullptr;}
+    virtual llvm::Value *gen_val(jit_engine*) {return nullptr;}
+    virtual llvm::Function *gen_func(jit_engine*) {return nullptr;}
+
+    virtual eval_t resolve_types(jit_engine& je) {return je.resolve_types(*this);}
 private:
 	tok _tok;
 	std::vector<std::shared_ptr<ast>> _nodes;
@@ -74,9 +77,10 @@ public:
 	expr_int(const tok& token)
 		: ast_expr(token) {set_eval_type(eval_t::ev_int64);}
 
-    Value *gen_val(jit_engine *je)
+    llvm::Value *gen_val(jit_engine *je)
     {
-        return je->visitor_gen_val(this);
+        //std::cout << "expr_int" << std::endl;
+        return je->visitor_gen_val(*this);
     }
 };
 
@@ -85,9 +89,10 @@ public:
 	expr_float(const tok& token)
 		: ast_expr(token) {set_eval_type(eval_t::ev_float);}
 
-    Value *gen_val(jit_engine *je)
+    llvm::Value *gen_val(jit_engine *je)
     {
-        return je->visitor_gen_val(this);
+        //std::cout << "expr_float" << std::endl;
+        return je->visitor_gen_val(*this);
     }
 };
 
@@ -96,9 +101,10 @@ public:
 	expr_var(const tok& token, eval_t ev)
 		: ast_expr(token) {set_eval_type(ev);}
 
-    Value *gen_val(jit_engine *je)
+    llvm::Value *gen_val(jit_engine *je)
     {
-        return je->visitor_gen_val(this);
+        //std::cout << "expr_var" << std::endl;
+        return je->visitor_gen_val(*this);
     }
 };
 
@@ -113,10 +119,13 @@ public:
 		set_eval_type(ev);
 	}
 
-    Value *gen_val(jit_engine *je)
+    llvm::Value *gen_val(jit_engine *je)
     {
-        return je->visitor_gen_val(this);
+        //std::cout << "expr_call" << std::endl;
+        return je->visitor_gen_val(*this);
     }
+
+    eval_t resolve_types(jit_engine& je) {return je.resolve_types(*this);}
 };
 
 class expr_if : public ast_expr { //tok::t_if
@@ -132,13 +141,16 @@ public:
         auto t2 = elseexpr->eval_type();
         if(t1 == t2) {
             set_eval_type(t1);
-        }
+        } //else if(t1 
     }
 
-    Value *gen_val(jit_engine *je)
+    llvm::Value *gen_val(jit_engine *je)
     {
-        return je->visitor_gen_val(this);
+        //std::cout << "expr_if" << std::endl;
+        return je->visitor_gen_val(*this);
     }
+
+    eval_t resolve_types(jit_engine& je) {return je.resolve_types(*this);}
 };
 
 class expr_binop : public ast_expr { //'+' | '-' | '*' | '/' | '<' | '>'
@@ -159,7 +171,7 @@ public:
         }
 	}
 
-    //Value *gen_val(jit_engine *je) {return je->visitor_gen_val(this);}
+    //llvm::Value *gen_val(jit_engine *je) {return je->visitor_gen_val(*this);}
 };
 
 
@@ -168,9 +180,10 @@ public:
     binop_add(const tok& token, const shared_expr& lhs, const shared_expr& rhs)
         : expr_binop(token, lhs, rhs) {}
 
-    Value *gen_val(jit_engine *je)
+    llvm::Value *gen_val(jit_engine *je)
     {
-        return je->visitor_gen_val(this);
+        //std::cout << "binop_add" << std::endl;
+        return je->visitor_gen_val(*this);
     }
 };
 
@@ -179,9 +192,10 @@ public:
     binop_sub(const tok& token, const shared_expr& lhs, const shared_expr& rhs)
         : expr_binop(token, lhs, rhs) {}
 
-    Value *gen_val(jit_engine *je)
+    llvm::Value *gen_val(jit_engine *je)
     {
-        return je->visitor_gen_val(this);
+        //std::cout << "binop_sub" << std::endl;
+        return je->visitor_gen_val(*this);
     }
 };
 
@@ -190,9 +204,10 @@ public:
     binop_mul(const tok& token, const shared_expr& lhs, const shared_expr& rhs)
         : expr_binop(token, lhs, rhs) {}
 
-    Value *gen_val(jit_engine *je)
+    llvm::Value *gen_val(jit_engine *je)
     {
-        return je->visitor_gen_val(this);
+        //std::cout << "binop_mul" << std::endl;
+        return je->visitor_gen_val(*this);
     }
 };
 
@@ -201,9 +216,10 @@ public:
     binop_div(const tok& token, const shared_expr& lhs, const shared_expr& rhs)
         : expr_binop(token, lhs, rhs) {}
 
-    Value *gen_val(jit_engine *je)
+    llvm::Value *gen_val(jit_engine *je)
     {
-        return je->visitor_gen_val(this);
+        //std::cout << "binop_div" << std::endl;
+        return je->visitor_gen_val(*this);
     }
 };
 
@@ -212,9 +228,9 @@ public:
     binop_lt(const tok& token, const shared_expr& lhs, const shared_expr& rhs)
         : expr_binop(token, lhs, rhs) {}
 
-    Value *gen_val(jit_engine *je)
+    llvm::Value *gen_val(jit_engine *je)
     {
-        return je->visitor_gen_val(this);
+        return je->visitor_gen_val(*this);
     }
 };
 
@@ -223,9 +239,9 @@ public:
     binop_gt(const tok& token, const shared_expr& lhs, const shared_expr& rhs)
         : expr_binop(token, lhs, rhs) {}
 
-    Value *gen_val(jit_engine *je)
+    llvm::Value *gen_val(jit_engine *je)
     {
-        return je->visitor_gen_val(this);
+        return je->visitor_gen_val(*this);
     }
 };
 
@@ -234,9 +250,9 @@ public:
     binop_lte(const tok& token, const shared_expr& lhs, const shared_expr& rhs)
         : expr_binop(token, lhs, rhs) {}
 
-    Value *gen_val(jit_engine *je)
+    llvm::Value *gen_val(jit_engine *je)
     {
-        return je->visitor_gen_val(this);
+        return je->visitor_gen_val(*this);
     }
 };
 
@@ -245,9 +261,9 @@ public:
     binop_gte(const tok& token, const shared_expr& lhs, const shared_expr& rhs)
         : expr_binop(token, lhs, rhs) {}
 
-    Value *gen_val(jit_engine *je)
+    llvm::Value *gen_val(jit_engine *je)
     {
-        return je->visitor_gen_val(this);
+        return je->visitor_gen_val(*this);
     }
 };
 
@@ -256,9 +272,9 @@ public:
     binop_eq(const tok& token, const shared_expr& lhs, const shared_expr& rhs)
         : expr_binop(token, lhs, rhs) {}
 
-    Value *gen_val(jit_engine *je)
+    llvm::Value *gen_val(jit_engine *je)
     {
-        return je->visitor_gen_val(this);
+        return je->visitor_gen_val(*this);
     }
 };
 
@@ -271,9 +287,9 @@ public:
 			add_node(i);
 	}
 
-    Function *gen_func(jit_engine *je)
+    llvm::Function *gen_func(jit_engine *je)
     {
-        return je->visitor_gen_func(this);
+        return je->visitor_gen_func(*this);
     }
 };
 
@@ -282,9 +298,9 @@ public:
     proto_anon(const tok& token, const std::vector<std::shared_ptr<expr_var>>& args)
         : ast_proto(token, args) {}
 
-    Function *gen_func(jit_engine *je)
+    llvm::Function *gen_func(jit_engine *je)
     {
-        return je->visitor_gen_func(this);
+        return je->visitor_gen_func(*this);
     }
 };
 
@@ -293,9 +309,9 @@ public:
     proto_template(const tok& token, const std::vector<std::shared_ptr<expr_var>>& args)
         : ast_proto(token, args) {set_eval_type(eval_t::ev_template);}
 
-    Function *gen_func(jit_engine *je)
+        llvm::Function *gen_func(jit_engine *je)
     {
-        return je->visitor_gen_func(this);
+        return je->visitor_gen_func(*this);
     }
 };*/
 
@@ -308,9 +324,10 @@ public:
 		add_node(body);
 	}
 
-    Function *gen_func(jit_engine *je)
+    llvm::Function *gen_func(jit_engine *je)
     {
-        return je->visitor_gen_func(this);
+        std::cout << "gen_func ast_func" << std::endl;
+        return je->visitor_gen_func(*this);
     }
 };
 
@@ -319,13 +336,13 @@ public:
     func_anon(const std::shared_ptr<proto_anon>& proto, const shared_expr& body)
         : ast_func(proto, body) {}
 
-    Function *gen_func(jit_engine *je)
+    llvm::Function *gen_func(jit_engine *je)
     {
-        if(Function *f = je->visitor_gen_func(this)) {
-            void *pfunc = je->getPointerToFunction(f);
+        if(llvm::Function *f = je->visitor_gen_func(*this)) {
+            /*void *pfunc = je->getPointerToFunction(f);
             std::int64_t (*fp)() = (std::int64_t (*)())pfunc;
             fp();
-            je->freeMachineCodeForFunction(f);
+            je->freeMachineCodeForFunction(f);*/
             return f;
         }
         return nullptr;
@@ -337,9 +354,9 @@ public:
     func_template(const std::shared_ptr<ast_proto>& proto, const shared_expr& body)
         : ast_func(proto, body) {}
 
-    Function *gen_func(jit_engine*)
+    llvm::Function *gen_func(jit_engine*)
     {
-        //return je->visitor_gen_func(this);
+        //return je->visitor_gen_func(*this);
         return nullptr;
     }
 };

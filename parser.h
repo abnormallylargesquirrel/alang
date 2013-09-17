@@ -31,6 +31,8 @@ private:
 	std::shared_ptr<lexer> _lex;
 	std::shared_ptr<func_manager> _fm;
     std::shared_ptr<expr_var> p_proto_param(void);
+
+    bool is_template_proto(const shared_proto& p);
 };
 
 #endif
