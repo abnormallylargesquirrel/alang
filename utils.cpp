@@ -1,20 +1,6 @@
 #include "utils.h"
+#include "ast.h"
 #include "eval_t.h"
-
-/*template<class T, class... Args>
-std::unique_ptr<T> make_unique(Args&&... args)
-{
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}*/
-
-bool error_called = false;
-
-std::nullptr_t error(const std::string& str)
-{
-    error_called = true;
-	std::cout << "Error: " << str << std::endl;
-	return nullptr;
-}
 
 bool is_binop(int c)
 {
@@ -43,10 +29,43 @@ bool is_cmp(int c)
     return false;
 }
 
-/*bool is_toplvl(int t)
+namespace {
+void print_nodes(std::queue<std::shared_ptr<ast>>& nodes)
 {
-    if(t == tok::var || t == tok::call || t == tok::proto || t == tok::literal_int)
-        return true;
+    if(nodes.empty())
+        return;
 
-    return false;
-}*/
+    std::queue<std::shared_ptr<ast>> next;
+    while(!nodes.empty()) {
+        auto front = nodes.front();
+        if(front->num_nodes() > 0) {
+        front->for_nodes([&](const std::shared_ptr<ast>& n) {
+                next.push(n);
+                std::cout << '<' << n->node_str() << ',' << n.get() << '>' << ' ';
+                //std::cout << '<' << n->node_str() << '>' << ' ';
+                });
+        } else {
+            std::cout << "[]";
+        }
+        nodes.pop();
+
+        if(!nodes.empty())
+            std::cout << " :: ";
+    }
+    std::cout << std::endl;
+
+    print_nodes(next);
+}
+}
+
+void print_node(const std::shared_ptr<ast>& node)
+{
+    std::queue<std::shared_ptr<ast>> q;
+    q.push(node);
+    print_nodes(q);
+}
+
+int get_num_args(const std::shared_ptr<ast_func>& f)
+{
+    return (*f)[0]->num_nodes();
+}

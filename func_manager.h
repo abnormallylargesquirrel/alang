@@ -13,6 +13,7 @@ class expr_if;
 class func_template;
 
 class func_manager {
+    typedef std::map<std::string, std::shared_ptr<func_template>> template_map;
 public:
     func_manager()
     {
@@ -90,11 +91,21 @@ public:
         (_func_alias[caller_name])[callee_name] = replacement;
     }
 
+    template_map::iterator begin(void)
+    {
+        return _lookup_template.begin();
+    }
+
+    template_map::iterator end(void)
+    {
+        return _lookup_template.end();
+    }
+
     std::string mangle_name(const ast& node);
 private:
     std::map<std::string, eval_t> _lookup_type;
     std::map<std::string, eval_t> _lookup_func_type;
-    std::map<std::string, std::shared_ptr<func_template>> _lookup_template;
+    template_map _lookup_template;
     std::map<std::string, llvm::Function*> _lookup_func;
     std::map<std::string, std::map<std::string, std::string>> _func_alias;
 };

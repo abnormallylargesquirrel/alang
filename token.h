@@ -32,6 +32,17 @@ public:
 
 	tok() : _type(nil) {}
 	tok(int type, std::string str) : _type(type), _str(str) {}
+    tok(const tok& t) : _type(t._type), _str(t._str) {}
+    tok(const tok&& t) : _type(std::move(t._type)), _str(std::move(t._str)) {}
+
+    tok& operator=(tok&& other)
+    {
+        //if(this != &other) {
+        _type = std::move(other._type);
+        _str = std::move(other._str);
+        //}
+        return *this;
+    }
 	
 	int type() const {return _type;}
 	void set_type(int t) {_type = t;}

@@ -27,10 +27,13 @@ public:
     pretty_printer& operator()(const type_operator& x)
     {
         switch(x.kind()) {
+            case types::ev_void:
+                _os << "void";
+                break;
             case types::ev_integer:
                 _os << "int";
                 break;
-            case types::ev_boolean:
+            case types::ev_float:
                 _os << "bool";
                 break;
             case types::ev_function:

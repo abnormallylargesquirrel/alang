@@ -39,7 +39,7 @@ void lexer::lex_num(tok& ret, bool is_signed)
     while(std::isdigit(_last_char) || _last_char == '.') {
         if(_last_char == '.') {
             if(point_found) {
-                error("Found more than 1 '.' in num literal");
+                throw std::runtime_error("Found  more than 1 '.' in num literal");
             }
             point_found = true;
         }

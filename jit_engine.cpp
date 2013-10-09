@@ -29,7 +29,7 @@ void jit_engine::init_fpm()
     _fpm.doInitialization();
 }
 
-jit_engine::jit_engine(const std::shared_ptr<func_manager>& fm)
+jit_engine::jit_engine(func_manager& fm)
     : _module(std::unique_ptr<Module>(new Module("alang module", getGlobalContext()))),
     _builder(IRBuilder<>(getGlobalContext())),
     _fpm(_module.get()),
@@ -54,7 +54,7 @@ jit_engine::jit_engine(const std::shared_ptr<func_manager>& fm)
     _module->setTargetTriple("i686-pc-linux-gnu");
 }
 
-eval_t jit_engine::resolve_types(const expr_if& node)
+eval_t jit_engine::resolve_types(expr_if& node)
 {
     node.for_nodes([&](const std::shared_ptr<ast>& n) {
             eval_t t = n->resolve_types(*this);
@@ -78,12 +78,12 @@ eval_t jit_engine::resolve_types(expr_call& node)
             n->set_eval_type(t);
             });
     /*std::cout << "resolve type called on call:";
-    eval_t t = _fm->lookup_func_type(node.node_str());
+    eval_t t = _fm.lookup_func_type(node.node_str());
     std::cout << eval_strings[static_cast<int>(t)] << std::endl;*/
-    return _fm->lookup_func_type(node.node_str());
+    return _fm.lookup_func_type(node.node_str());
 }
 
-eval_t jit_engine::resolve_types(const ast& node)
+eval_t jit_engine::resolve_types(ast& node)
 {
     if(node.num_nodes() == 0) {
         if(lookup_var(node.node_str()) != eval_t::ev_invalid) {
@@ -103,14 +103,14 @@ eval_t jit_engine::resolve_types(const ast& node)
             eval_t t = n->resolve_types(*this);//resolve_types(*n);
             n->set_eval_type(t);
             if(t == eval_t::ev_invalid) {
-                error("Resolve_types failed");
+                throw std::runtime_error("Resolve_types failed");
             } else if(t != eval_t::ev_template) {
                 nodes_types.insert(static_cast<int>(t));
             }
             });
 
     if(nodes_types.size() > 1)
-        error("Multiple types present in resolve_types container");
+        throw std::runtime_error("Multiple types present in resolve_types container");
 
     return static_cast<eval_t>(*(nodes_types.begin()));
 }
@@ -130,7 +130,7 @@ Type *jit_engine::lookup_llvm_type(eval_t t)
     if(it != _lookup_llvm_type.end())
         return it->second;
 
-    return nullptr;
+    throw std::runtime_error("No defined mapping for eval_t -> Type*");
 }
 
 eval_t jit_engine::lookup_eval_type(Type *t)
@@ -159,12 +159,12 @@ void jit_engine::cast_float(Value*& v)
         v = _builder.CreateSIToFP(v, Type::getDoubleTy(getGlobalContext()));
 }
 
-std::vector<Value*> jit_engine::nodes_to_vals(const ast& node, bool)
+std::vector<Value*> jit_engine::nodes_to_vals(ast& node, bool)
 {
     std::vector<Value*> ret;
-    bool failed = false;
+    //bool failed = false;
     node.for_nodes([&](const std::shared_ptr<ast>& n) {
-            Value* tmp = n->gen_val(this);
+            Value* tmp = n->gen_val(*this);
 
             /*if(do_cast) {
                 switch(node.eval_type()) {
@@ -184,68 +184,62 @@ std::vector<Value*> jit_engine::nodes_to_vals(const ast& node, bool)
             }*/
 
             ret.push_back(tmp);
-            if(!ret.back())
-                failed = true;
+            //if(!ret.back())
+                //failed = true;
             });
 
-    if(failed)
-        ret.clear();
+    //if(failed)
+        //ret.clear();
 
     return ret;
 }
 
-Value *jit_engine::visitor_gen_val(const expr_float& node)
+Value *jit_engine::visitor_gen_val(expr_float& node)
 {
     return ConstantFP::get(getGlobalContext(), APFloat(_str_to_double(node.node_str())));
 }
 
-Value *jit_engine::visitor_gen_val(const expr_int& node)
+Value *jit_engine::visitor_gen_val(expr_int& node)
 {
     return ConstantInt::getSigned(Type::getInt64Ty(getGlobalContext()), _str_to_i64(node.node_str()));
 }
 
-Value *jit_engine::visitor_gen_val(const expr_var& node) //NODE NOT CONST
+Value *jit_engine::visitor_gen_val(expr_var& node) //NODE NOT CONST
 {
     auto it = local_values().find(node.node_str());
     Value *v = nullptr;
     if(it != local_values().end()) {
         v = it->second;
     } else {
-        auto ret = _fm->lookup_func(node.node_str());
-        auto ret2 = _fm->lookup_template(node.node_str());
+        auto ret = _fm.lookup_func(node.node_str());
+        auto ret2 = _fm.lookup_template(node.node_str());
         if(ret || ret2) {
             //std::cout << "generated 1 for func placeholder" << std::endl;
-            const_cast<expr_var&>(node).set_eval_type(eval_t::ev_int64);
+            node.set_eval_type(eval_t::ev_int64);
             return ConstantInt::getSigned(Type::getInt64Ty(getGlobalContext()), 1); //signal function parameter
         }
     }
 
     if(!v) {
-        std::cout << node.node_str() << ":";
-        return error("Unknown variable referenced");
+        //std::cout << node.node_str() << ":";
+        //return error("Unknown variable referenced");
+        throw std::runtime_error("Unknown variable referenced");
     }
     return v;
-}
-
-void print_nodes(const std::shared_ptr<ast>& node)
-{
-    node->for_nodes([&](const std::shared_ptr<ast>& n) {
-            std::cout << n->to_str() << std::endl;
-            print_nodes(n);
-            });
 }
 
 Value *jit_engine::visitor_gen_val(expr_call& node) //must resolve node eval_type if not already set
 {
     std::vector<Value*> vargs = nodes_to_vals(node);
     //std::cout << eval_strings[static_cast<int>(((*node)[0])->eval_type())] << std::endl;
-    //std::cout << _fm->mangle_name(node) << std::endl;
-    Function *target_func = _module->getFunction(_fm->mangle_name(node));
+    //std::cout << _fm.mangle_name(node) << std::endl;
+    Function *target_func = _module->getFunction(_fm.mangle_name(node));
     if(!target_func) {
-        std::shared_ptr<func_template> ft = _fm->lookup_template(node.node_str());
+        std::shared_ptr<func_template> ft = _fm.lookup_template(node.node_str());
         if(!ft) {
-            std::cout << _fm->mangle_name(node) << std::endl;
-            return error("Unknown function referenced");
+            //std::cout << _fm.mangle_name(node) << std::endl;
+            //return error("Unknown function referenced");
+            throw std::runtime_error("Unknown function referenced");
         }
 
         std::shared_ptr<ast> proto_tmp = ((*ft)[0]);
@@ -271,14 +265,16 @@ Value *jit_engine::visitor_gen_val(expr_call& node) //must resolve node eval_typ
         //print_nodes(ft);
 
         BasicBlock *bb = _builder.GetInsertBlock();
-        target_func = visitor_gen_func(static_cast<ast_func>(*ft));
+        auto ft_cast = static_cast<ast_func>(*ft);
+        target_func = visitor_gen_func(ft_cast);
         _builder.SetInsertPoint(bb);
     }
 
     //std::cout << _builder.GetInsertBlock()->getParent()->getName().str() << std::endl; //func name of caller
 
     if(static_cast<int>(target_func->arg_size()) != node.num_nodes())
-        return error("Incorrect number of function arguments");
+        throw std::runtime_error("Incorrect number of function arguments");
+        //return error("Incorrect number of function arguments");
 
     if(target_func->getReturnType() != Type::getVoidTy(getGlobalContext()))
         return _builder.CreateCall(target_func, vargs, "calltmp");
@@ -286,11 +282,11 @@ Value *jit_engine::visitor_gen_val(expr_call& node) //must resolve node eval_typ
     return _builder.CreateCall(target_func, vargs);
 }
 
-Value *jit_engine::visitor_gen_val(const expr_if& node)
+Value *jit_engine::visitor_gen_val(expr_if& node)
 {
-    Value *condv = node[0]->gen_val(this);
-    if(!condv)
-        return error("Could not generate condition in if");
+    Value *condv = node[0]->gen_val(*this);
+    //if(!condv)
+        //return error("Could not generate condition in if");
 
     if(node[1]->eval_type() == eval_t::ev_template && node[2]->eval_type() != eval_t::ev_template)
         node[1]->set_eval_type(node[2]->eval_type());
@@ -298,7 +294,7 @@ Value *jit_engine::visitor_gen_val(const expr_if& node)
         node[2]->set_eval_type(node[1]->eval_type());
 
     if(node[1]->eval_type() != node[2]->eval_type())
-            return error("Then and else expressions in if must be same eval type");
+        throw std::runtime_error("'then' and 'else' expressions in 'if' must be same type");
 
     if(node.eval_type() == eval_t::ev_int64)
         condv = _builder.CreateICmpNE(condv, ConstantInt::get(getGlobalContext(),
@@ -306,7 +302,7 @@ Value *jit_engine::visitor_gen_val(const expr_if& node)
     else if(node.eval_type() == eval_t::ev_float)
         condv = _builder.CreateFCmpONE(condv, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "ifcond");
     else
-        return error("Invalid eval type in if");
+        throw std::runtime_error("Invalid type in 'if'");
 
     Function *f = _builder.GetInsertBlock()->getParent(); //current block->current function
 
@@ -317,9 +313,7 @@ Value *jit_engine::visitor_gen_val(const expr_if& node)
     _builder.CreateCondBr(condv, thenBB, elseBB);
     _builder.SetInsertPoint(thenBB);
 
-    Value *thenv = node[1]->gen_val(this);
-    if(!thenv)
-        return error("Could not generate then in if");
+    Value *thenv = node[1]->gen_val(*this);
 
     _builder.CreateBr(mergeBB); //all basic blocks must be terminated (return/branch)
     thenBB = _builder.GetInsertBlock(); //in case of nested control structures in then block
@@ -327,9 +321,7 @@ Value *jit_engine::visitor_gen_val(const expr_if& node)
     f->getBasicBlockList().push_back(elseBB);
     _builder.SetInsertPoint(elseBB);
 
-    Value *elsev = node[2]->gen_val(this);
-    if(!elsev)
-        return error("Could not generate else in if");
+    Value *elsev = node[2]->gen_val(*this);
 
     _builder.CreateBr(mergeBB);
     elseBB = _builder.GetInsertBlock();
@@ -343,74 +335,74 @@ Value *jit_engine::visitor_gen_val(const expr_if& node)
     else if(node.eval_type() == eval_t::ev_float)
         pn = _builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), 2, "iftmp");
     else
-        return error("Invalid eval type in if");
+        throw std::runtime_error("Invalid type in 'if'");
 
     pn->addIncoming(thenv, thenBB);
     pn->addIncoming(elsev, elseBB);
     return pn;
 }
 
-Value *jit_engine::visitor_gen_val(const binop_add& node)
+Value *jit_engine::visitor_gen_val(binop_add& node)
 {
     std::vector<Value*> v = nodes_to_vals(node);
     if(v[0]->getType() != v[1]->getType())
-        return error("Different types in binop_add");
+        throw std::runtime_error("Different types in binop");
 
     if(node.eval_type() == eval_t::ev_int64)
         return _builder.CreateAdd(v[0], v[1], "addtmp");
     if(node.eval_type() == eval_t::ev_float)
         return _builder.CreateFAdd(v[0], v[1], "addtmp");
 
-    return error("Invalid eval type in binop_add");
+    throw std::runtime_error("Invalid type in binop");
 }
 
-Value *jit_engine::visitor_gen_val(const binop_sub& node)
+Value *jit_engine::visitor_gen_val(binop_sub& node)
 {
     std::vector<Value*> v = nodes_to_vals(node);
     if(v[0]->getType() != v[1]->getType())
-        return error("Different types in binop_sub");
+        throw std::runtime_error("Different types in binop");
 
     if(node.eval_type() == eval_t::ev_int64)
         return _builder.CreateSub(v[0], v[1], "subtmp");
     if(node.eval_type() == eval_t::ev_float)
         return _builder.CreateFSub(v[0], v[1], "subtmp");
 
-    return error("Invalid eval type in binop_sub");
+    throw std::runtime_error("Invalid type in binop");
 }
 
-Value *jit_engine::visitor_gen_val(const binop_mul& node)
+Value *jit_engine::visitor_gen_val(binop_mul& node)
 {
     std::vector<Value*> v = nodes_to_vals(node);
     if(v[0]->getType() != v[1]->getType())
-        return error("Different types in binop_mul");
+        throw std::runtime_error("Different types in binop");
 
     if(node.eval_type() == eval_t::ev_int64)
         return _builder.CreateMul(v[0], v[1], "multmp");
     if(node.eval_type() == eval_t::ev_float)
         return _builder.CreateFMul(v[0], v[1], "multmp");
 
-    return error("Invalid eval type in binop_mul");
+    throw std::runtime_error("Invalid type in binop");
 }
 
-Value *jit_engine::visitor_gen_val(const binop_div& node)
+Value *jit_engine::visitor_gen_val(binop_div& node)
 {
     std::vector<Value*> v = nodes_to_vals(node);
     if(v[0]->getType() != v[1]->getType())
-        return error("Different types in binop_div");
+        throw std::runtime_error("Different types in binop");
 
     if(node.eval_type() == eval_t::ev_int64)
         return _builder.CreateSDiv(v[0], v[1], "divtmp");
     if(node.eval_type() == eval_t::ev_float)
         return _builder.CreateFDiv(v[0], v[1], "divtmp");
 
-    return error("Invalid eval type in binop_div");
+    throw std::runtime_error("Invalid type in binop");
 }
 
-Value *jit_engine::visitor_gen_val(const binop_lt& node)
+Value *jit_engine::visitor_gen_val(binop_lt& node)
 {
     std::vector<Value*> v = nodes_to_vals(node);
     if(v[0]->getType() != v[1]->getType())
-        return error("Different types in binop_lt");
+        throw std::runtime_error("Different types in binop");
 
     if(node.eval_type() == eval_t::ev_int64) {
         v[0] = _builder.CreateICmpSLT(v[0], v[1], "lttmp");
@@ -421,14 +413,14 @@ Value *jit_engine::visitor_gen_val(const binop_lt& node)
         return _builder.CreateUIToFP(v[0], Type::getDoubleTy(getGlobalContext()));
     }
 
-    return error("Invalid eval type in binop_lt");
+    throw std::runtime_error("Invalid type in binop");
 }
 
-Value *jit_engine::visitor_gen_val(const binop_gt& node)
+Value *jit_engine::visitor_gen_val(binop_gt& node)
 {
     std::vector<Value*> v = nodes_to_vals(node);
     if(v[0]->getType() != v[1]->getType())
-        return error("Different types in binop_gt");
+        throw std::runtime_error("Different types in binop");
 
     if(node.eval_type() == eval_t::ev_int64) {
         v[0] = _builder.CreateICmpSGT(v[0], v[1], "gttmp");
@@ -439,14 +431,14 @@ Value *jit_engine::visitor_gen_val(const binop_gt& node)
         return _builder.CreateUIToFP(v[0], Type::getDoubleTy(getGlobalContext()));
     }
 
-    return error("Invalid eval type in binop_gt");
+    throw std::runtime_error("Invalid type in binop");
 }
 
-Value *jit_engine::visitor_gen_val(const binop_lte& node)
+Value *jit_engine::visitor_gen_val(binop_lte& node)
 {
     std::vector<Value*> v = nodes_to_vals(node);
     if(v[0]->getType() != v[1]->getType())
-        return error("Different types in binop_lte");
+        throw std::runtime_error("Different types in binop");
 
     if(node.eval_type() == eval_t::ev_int64) {
         v[0] = _builder.CreateICmpSLE(v[0], v[1], "ltetmp");
@@ -457,14 +449,14 @@ Value *jit_engine::visitor_gen_val(const binop_lte& node)
         return _builder.CreateUIToFP(v[0], Type::getDoubleTy(getGlobalContext()));
     }
 
-    return error("Invalid eval type in binop_lte");
+    throw std::runtime_error("Invalid type in binop");
 }
 
-Value *jit_engine::visitor_gen_val(const binop_gte& node)
+Value *jit_engine::visitor_gen_val(binop_gte& node)
 {
     std::vector<Value*> v = nodes_to_vals(node);
     if(v[0]->getType() != v[1]->getType())
-        return error("Different types in binop_gte");
+        throw std::runtime_error("Different types in binop");
 
     if(node.eval_type() == eval_t::ev_int64) {
         v[0] = _builder.CreateICmpSGE(v[0], v[1], "gtetmp");
@@ -475,14 +467,14 @@ Value *jit_engine::visitor_gen_val(const binop_gte& node)
         return _builder.CreateUIToFP(v[0], Type::getDoubleTy(getGlobalContext()));
     }
 
-    return error("Invalid eval type in binop_gte");
+    throw std::runtime_error("Invalid type in binop");
 }
 
-Value *jit_engine::visitor_gen_val(const binop_eq& node)
+Value *jit_engine::visitor_gen_val(binop_eq& node)
 {
     std::vector<Value*> v = nodes_to_vals(node);
     if(v[0]->getType() != v[1]->getType())
-        return error("Different types in binop_eq");
+        throw std::runtime_error("Different types in binop");
 
     if(node.eval_type() == eval_t::ev_int64) {
         v[0] = _builder.CreateICmpEQ(v[0], v[1], "eqtmp");
@@ -493,20 +485,20 @@ Value *jit_engine::visitor_gen_val(const binop_eq& node)
         return _builder.CreateUIToFP(v[0], Type::getDoubleTy(getGlobalContext()));
     }
 
-    return error("Invalid eval type in binop_eq");
+    throw std::runtime_error("Invalid type in binop");
 }
 
-Function *jit_engine::build_proto(const ast_proto& node, Function *f)
+Function *jit_engine::build_proto(ast_proto& node, Function *f)
 {
-    //std::cout << f->getName().str() << '\n' << _fm->mangle_name(node) << std::endl;
-    if(f->getName() != _fm->mangle_name(node)) { //if function with name already existed, it's implicitly renamed
+    //std::cout << f->getName().str() << '\n' << _fm.mangle_name(node) << std::endl;
+    if(f->getName() != _fm.mangle_name(node)) { //if function with name already existed, it's implicitly renamed
         f->eraseFromParent();
-        f = _module->getFunction(_fm->mangle_name(node));
+        f = _module->getFunction(_fm.mangle_name(node));
 
         if(!f->empty())
-            return error("Function already defined");
+            throw std::runtime_error("Redefinition of a function");
         if(static_cast<int>(f->arg_size()) != node.num_nodes()) //define or decl allowed after decl, same # args
-            return error("Redefinition of a function with different number of arguments");
+            throw std::runtime_error("Redeclaration of a function with different number of arguments");
     }
 
     unsigned int idx = 0;
@@ -516,7 +508,7 @@ Function *jit_engine::build_proto(const ast_proto& node, Function *f)
         if(check_unique.find(arg_name) == check_unique.end())
             check_unique.insert(arg_name);
         else
-            return error("Redeclaration of function parameter(s)");
+            throw std::runtime_error("Redeclaration of function parameter");
 
         ai->setName(arg_name);
         local_values()[node[idx]->node_str()] = ai;
@@ -527,56 +519,39 @@ Function *jit_engine::build_proto(const ast_proto& node, Function *f)
 
 }
 
-Function *jit_engine::visitor_gen_func(const ast_proto& node)
+Function *jit_engine::visitor_gen_func(ast_proto& node)
 {
     std::vector<Type*> params;
-    bool invalid_param = false;
     node.for_nodes([&](const std::shared_ptr<ast>& n){
-            Type *param_type = lookup_llvm_type(n->eval_type());
-            if(!param_type) {
-                std::cout << n->node_str() << std::endl;
-                invalid_param = true;
-            }
-
             params.push_back(lookup_llvm_type(n->eval_type()));
             });
-
-    if(invalid_param)
-        return error("Invalid parameter eval type in proto");
 
     /*if(node->eval_type() == eval_t::ev_template)
         return error("Template eval type in prototype");*/
 
     Type *t = lookup_llvm_type(node.eval_type());
-    if(!t) {
-        std::cout << node.node_str() << ":";
-        return error("Invalid eval type in prototype");
-    }
 
     FunctionType *ftype = FunctionType::get(t, params, false);
-    Function *f = Function::Create(ftype, Function::ExternalLinkage, _fm->mangle_name(node), _module.get());
+    Function *f = Function::Create(ftype, Function::ExternalLinkage, _fm.mangle_name(node), _module.get());
 
     return build_proto(node, f);
 }
 
-Function *jit_engine::visitor_gen_func(const proto_anon& node)
+Function *jit_engine::visitor_gen_func(proto_anon& node)
 {
     FunctionType *ftype = FunctionType::get(Type::getVoidTy(getGlobalContext()), std::vector<Type*>(), false);
-    Function *f = Function::Create(ftype, Function::ExternalLinkage, _fm->mangle_name(node), _module.get());
+    Function *f = Function::Create(ftype, Function::ExternalLinkage, _fm.mangle_name(node), _module.get());
 
     return build_proto(node, f);
 }
 
-Function *jit_engine::build_func(const ast_func& node)
+Function *jit_engine::build_func(ast_func& node)
 {
     //_named_values.clear();
     //local_values().clear();
     //clear_vars();
     push_scope();
-    Function *func = node[0]->gen_func(this); //proto
-
-    if(!func)
-        return error("Could not generate function prototype");
+    Function *func = node[0]->gen_func(*this); //proto
 
     auto p = node[0];
 
@@ -587,11 +562,13 @@ Function *jit_engine::build_func(const ast_func& node)
     return func;
 }
 
-Function *jit_engine::visitor_gen_func(const ast_func& node)
+Function *jit_engine::visitor_gen_func(ast_func& node)
 {
     auto func = build_func(node);
 
-    if(Value *ret = node[1]->gen_val(this)) { //body
+    try
+    {
+        Value *ret = node[1]->gen_val(*this); //body
         if(ret->getType()->isVoidTy())
             _builder.CreateRetVoid();
         else
@@ -602,25 +579,29 @@ Function *jit_engine::visitor_gen_func(const ast_func& node)
         pop_scope();
         return func;
     }
-
-    func->eraseFromParent();
-    pop_scope();
-    return error("Could not generate code for function body");
+    catch(const std::runtime_error& e)
+    {
+        func->eraseFromParent();
+        throw e;
+    }
 }
 
-Function *jit_engine::visitor_gen_func(const func_anon& node)
+Function *jit_engine::visitor_gen_func(func_anon& node)
 {
     auto func = build_func(node);
 
-    if((node[1])->gen_val(this)) { //body
+    try
+    {
+        (node[1])->gen_val(*this); //body
         _builder.CreateRetVoid();
         verifyFunction(*func);
         _fpm.run(*func);
         pop_scope();
         return func;
     }
-
-    func->eraseFromParent();
-    pop_scope();
-    return error("Could not generate code for function body");
+    catch(const std::runtime_error& e)
+    {
+        func->eraseFromParent();
+        throw e;
+    }
 }
