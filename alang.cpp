@@ -106,7 +106,8 @@ int main(int argc, char **argv)
 
     ast root;
     environment env;
-    try_infer infer(env);
+    std::map<std::string, std::set<std::string>> dependencies;
+    try_infer infer(env, dependencies, fm);
 
     main_handler handler(p, root, fm);
     try
@@ -118,11 +119,14 @@ int main(int argc, char **argv)
         //je.run_pm();
         //run(root, je);
 
-        print_node(fm.lookup_template("func"));
+        //print_node(fm.lookup_template("func"));
 
         for(auto& i : fm)
             infer(i.second);
         infer((*root[0])[1]);
+
+        for(auto& i : env)
+            std::cout << i.first << " " << i.second << std::endl;
         //std::cout << root[0]->node_str() << std::endl;
         //r((*root[0])[1]); // pass expression, not function, returned expression replaces function body
         //print_node(root[0]);

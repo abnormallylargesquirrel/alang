@@ -3,6 +3,8 @@
 
 #include "hm_inference.h"
 
+class func_manager;
+
 class type_printer : public boost::static_visitor<type_printer&> {
 public:
     type_printer(std::ostream& os)
@@ -95,38 +97,39 @@ inline std::ostream& operator<<(std::ostream& os, const type_operator& x)
 }
 
 struct try_infer {
-    try_infer(environment& e)
-        : _env(e) {}
+    try_infer(environment& e, std::map<std::string, std::set<std::string>>& dependencies, func_manager& fm)
+        : _env(e), _dependencies(dependencies), _fm(fm) {}
 
     void operator()(const shared_ast& n) const
     {
         try
         {
-            auto result = infer_type(n, _env);
-
-            std::cout << n << " : ";
-            type_printer pp(std::cout);
-            pp << result << std::endl;
+            auto result = infer_type(n, _env, _dependencies, _fm);
         }
         catch(const recursive_unification& e)
         {
             std::cerr << n << " : ";
             type_printer pp(std::cerr);
             pp << e.what() << ": " << e.x << " in " << e.y << std::endl;
+            throw std::runtime_error("Type error");
         }
         catch(const type_mismatch& e)
         {
             std::cerr << n << " : ";
             type_printer pp(std::cerr);
             pp << e.what() << ": " << e.x << " != " << e.y << std::endl;
+            throw std::runtime_error("Type error");
         }
         catch(const std::runtime_error& e)
         {
             std::cerr << n << " : " << e.what() << std::endl;
+            throw std::runtime_error("Type error");
         }
     }
 
     environment& _env;
+    std::map<std::string, std::set<std::string>>& _dependencies;
+    func_manager& _fm;
 };
 
 

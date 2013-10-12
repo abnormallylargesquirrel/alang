@@ -1,4 +1,5 @@
 #include "hm_inference.h"
+#include "func_manager.h"
 
 type make_function(const type& arg, const type& result)
 {
@@ -41,6 +42,15 @@ type definitive(const std::map<type_variable, type>& substitution, const type_va
     }
 
     return result;
+}
+
+type definitive(const std::map<type_variable, type>& substitution, const type& x)
+{
+    if(x.which() == 0) { // type_variable
+        return definitive(substitution, boost::get<type_variable>(x));
+    }
+
+    return x;
 }
 
 // environment
@@ -102,7 +112,9 @@ bool fresh_maker::is_generic(const type_variable& var) const
 }
 
 // inferencer
-inferencer::inferencer(environment& env) : _environment(env) {}
+inferencer::inferencer(environment& env, std::map<std::string,
+        std::set<std::string>>& dependencies, func_manager& fm)
+    : _fm(fm), _environment(env), _dependencies(dependencies) {}
 type inferencer::operator()(ast&) {return ty_void();}
 type inferencer::operator()(expr_int&) {return ty_integer();}
 type inferencer::operator()(expr_float&) {return ty_float();}
@@ -110,14 +122,15 @@ type inferencer::operator()(expr_float&) {return ty_float();}
 
 type inferencer::operator()(expr_sym& id)
 {
-    if(!_environment.count(id.node_str()))
+    auto id_name = id.node_str();
+    if(!_environment.count(id_name))
     {
-        auto what = "Undefined symbol: " + id.node_str();
-        throw std::runtime_error(what);
+        _dependencies[id_name].insert(_cur_func_name);
+        return type_variable(_environment.unique_id());
     }
 
     //auto freshen = definitive(_substitution, _environment[id.node_str()]);
-    auto freshen = _environment[id.node_str()];
+    auto freshen = _environment[id_name];
     auto v = fresh_maker(_environment, _non_generic_variables, _substitution);
 
     return v(freshen);
@@ -156,9 +169,10 @@ type inferencer::operator()(expr_binop& e)
 
 type inferencer::operator()(ast_func& f)
 {
+    _cur_func_name = f[0]->node_str();
     type_variable tmp_type(_environment.unique_id()); // tmp_type is placehodler for function_type
     {
-        scoped_non_generic_variable ng(this, f[0]->node_str(), tmp_type);
+        scoped_non_generic_variable ng(*this, f[0]->node_str(), tmp_type);
 
         std::vector<type> arg_types;
         std::vector<scoped_non_generic_variable> scope;
@@ -166,7 +180,7 @@ type inferencer::operator()(ast_func& f)
 
         f[0]->for_nodes([&](shared_ast& n) {
                 type_variable arg_type(_environment.unique_id());
-                scope.emplace_back(this, n->node_str(), arg_type); // each element destructed at end of operator()
+                scope.emplace_back(*this, n->node_str(), arg_type); // each element destructed at end of operator()
                 arg_types.push_back(arg_type);
                 });
 
@@ -188,11 +202,20 @@ type inferencer::operator()(ast_func& f)
     } // destruct scoped_non_generic_variable, make non_generic with same name
     auto ret = definitive(_substitution, tmp_type);
     _environment[f[0]->node_str()] = ret;
+
+    auto it = _dependencies.find(f[0]->node_str());
+    if(it != std::end(_dependencies)) {
+        for(auto& i : it->second) {
+            _environment[i] = _fm.lookup_template(i)->infer_type(*this);
+        }
+    }
+
     return ret;
 }
 
-type infer_type(const shared_ast& node, environment& env)
+type infer_type(const shared_ast& node, environment& env,
+        std::map<std::string, std::set<std::string>>& dependencies, func_manager& fm)
 {
-    inferencer v(env);
+    inferencer v(env, dependencies, fm);
     return node->infer_type(v);
 }

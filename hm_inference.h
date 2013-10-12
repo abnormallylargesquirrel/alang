@@ -9,6 +9,8 @@
 #include "hm_unification.h"
 #include "ast.h"
 
+class func_manager;
+
 namespace types
 {
 static const int ev_void = 0;
@@ -52,7 +54,8 @@ private:
 };
 
 struct inferencer : boost::static_visitor<type> {
-    inferencer(environment& env);
+    inferencer(environment& env, std::map<std::string,
+            std::set<std::string>>& dependencies, func_manager& fm);
 
     type operator()(ast&);
     type operator()(expr_int&);
@@ -65,8 +68,8 @@ struct inferencer : boost::static_visitor<type> {
     type operator()(ast_func& f);
 
     struct scoped_generic { // (and non-generic) remove destructor for non-scoped
-        scoped_generic(inferencer *inf, const std::string& name, const type& t)
-            : _environment(inf->_environment)
+        scoped_generic(inferencer& inf, const std::string& name, const type& t)
+            : _environment(inf._environment)
         {
             auto iter = _environment.find(name);
             if(iter != _environment.end()) {
@@ -96,9 +99,9 @@ struct inferencer : boost::static_visitor<type> {
     };
 
     struct scoped_non_generic_variable : scoped_generic {
-        scoped_non_generic_variable(inferencer *inf, const std::string& name, const type_variable& var)
+        scoped_non_generic_variable(inferencer& inf, const std::string& name, const type_variable& var)
             : scoped_generic(inf, name, var),
-            _non_generic(inf->_non_generic_variables),
+            _non_generic(inf._non_generic_variables),
             _erase_me(_non_generic.insert(var))
         {}
 
@@ -112,11 +115,16 @@ struct inferencer : boost::static_visitor<type> {
         std::pair<std::set<type_variable>::iterator, bool> _erase_me;
     };
 
+    func_manager& _fm;
     environment& _environment;
     std::set<type_variable> _non_generic_variables;
     std::map<type_variable, type> _substitution;
+    std::map<std::string, std::set<std::string>>& _dependencies;
+
+    std::string _cur_func_name;
 };
 
-type infer_type(const shared_ast& node, environment& env);
+type infer_type(const shared_ast& node, environment& env, std::map<std::string,
+        std::set<std::string>>& dependencies, func_manager& fm);
 
 #endif
