@@ -1,5 +1,6 @@
 #include "hm_inference.h"
 #include "func_manager.h"
+#include "eval_t.h"
 
 type make_function(const type& arg, const type& result)
 {
@@ -164,13 +165,24 @@ type inferencer::operator()(expr_binop& e)
     auto arg1_type = e[1]->infer_type(*this);
 
     unify(arg0_type, arg1_type, _substitution);
+    switch(e.eval_type()) {
+        case eval_t::ev_int:
+            unify(arg0_type, ty_integer(), _substitution);
+            break;
+        case eval_t::ev_float:
+            unify(arg0_type, ty_float(), _substitution);
+            break;
+        default:
+            throw std::runtime_error("Invalid type in binary operator");
+    }
+
     return arg0_type;
 }
 
 type inferencer::operator()(ast_func& f)
 {
     _cur_func_name = f[0]->node_str();
-    type_variable tmp_type(_environment.unique_id()); // tmp_type is placehodler for function_type
+    type_variable tmp_type(_environment.unique_id()); // tmp_type is placeholder for function_type
     {
         scoped_non_generic_variable ng(*this, f[0]->node_str(), tmp_type);
 

@@ -54,14 +54,16 @@ void lexer::lex_num(tok& ret, bool is_signed)
     else
         num_type = tok::literal_int;
 
-    switch(num_type) {
+    ret.set_type(num_type);
+
+    /*switch(num_type) {
     case tok::literal_int:
         ret.set_type(tok::literal_int);
         break;
     case tok::literal_float:
         ret.set_type(tok::literal_float);
         break;
-    }
+    }*/
 }
 
 void lexer::lex_binop(tok& ret)
@@ -69,28 +71,28 @@ void lexer::lex_binop(tok& ret)
     //std::string rstr;
     ret.set_str(std::string(1, static_cast<char>(_last_char)));
     _last_char = _is.get();
-    while(is_binop(_last_char) || _last_char == '=') {
+    while(is_binop(_last_char) || _last_char == '=' || _last_char == '.') {
         ret.set_str(ret.str() + static_cast<char>(_last_char));
         _last_char = _is.get();
     }
 
-    if(ret.str() == "+") {
+    if(ret.str() == "+" || ret.str() == "+.") {
         ret.set_type(tok::add);
-    } else if(ret.str() == "-") {
+    } else if(ret.str() == "-" || ret.str() == "-.") {
         ret.set_type(tok::sub);
-    } else if(ret.str() == "*") {
+    } else if(ret.str() == "*" || ret.str() == "*.") {
         ret.set_type(tok::mul);
-    } else if(ret.str() == "/") {
+    } else if(ret.str() == "/" || ret.str() == "/.") {
         ret.set_type(tok::div);
-    } else if(ret.str() == "<") {
+    } else if(ret.str() == "<" || ret.str() == "<.") {
         ret.set_type(tok::lt);
-    } else if(ret.str() == ">") {
+    } else if(ret.str() == ">" || ret.str() == ">.") {
         ret.set_type(tok::gt);
-    } else if(ret.str() == "<=") {
+    } else if(ret.str() == "<=" || ret.str() == "<=.") {
         ret.set_type(tok::lte);
-    } else if(ret.str() == ">=") {
+    } else if(ret.str() == ">=" || ret.str() == ">=.") {
         ret.set_type(tok::gte);
-    } else if(ret.str() == "==") {
+    } else if(ret.str() == "==" || ret.str() == "==.") {
         ret.set_type(tok::eq);
     }
     /*if(is_binop(ret.str()))

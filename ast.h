@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <boost/variant.hpp>
 #include <boost/variant/recursive_wrapper.hpp>
-//#include "hm_unification.h"
 #include "token.h"
 #include "jit_engine.h"
 #include "func_manager.h"
@@ -71,7 +70,6 @@ public:
     }
 
     virtual void clone(shared_ast& node) {node = std::make_shared<ast>(*this);}
-
     virtual type infer_type(inferencer& inf);
 
     /*virtual llvm::Value *gen_val(jit_engine&) {return nullptr;}
@@ -98,7 +96,7 @@ public:
 class expr_int : public ast_expr { //tok::val_int
 public:
 	expr_int(const std::string& name)
-		: ast_expr(name) {set_eval_type(eval_t::ev_int64);}
+		: ast_expr(name) {set_eval_type(eval_t::ev_int);}
 
     virtual void clone(std::shared_ptr<expr_int>& node) {node = std::make_shared<expr_int>(*this);}
     virtual type infer_type(inferencer& inf);
@@ -234,20 +232,19 @@ public:
 
 class expr_binop : public ast_expr { //'+' | '-' | '*' | '/' | '<' | '>'
 public:
-	expr_binop(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
+	expr_binop(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
 		: ast_expr(name)
 	{
 		add_node(lhs);
 		add_node(rhs);
 
-		auto t1 = lhs->eval_type();
+        set_eval_type(ty);
+
+		/*auto t1 = lhs->eval_type();
 		auto t2 = rhs->eval_type();
 		if(t1 == t2) {
 			set_eval_type(t1);
-		}/* else if((t1 == eval_t::ev_int64 && t2 == eval_t::ev_float)
-                || (t1 == eval_t::ev_float && t2 == eval_t::ev_int64)) {
-            set_eval_type(eval_t::ev_int64);
-        }*/
+		}*/
 	}
 
     virtual void clone(std::shared_ptr<expr_binop>& node) {node = std::make_shared<expr_binop>(*this);}
@@ -259,8 +256,8 @@ public:
 
 class binop_add : public expr_binop {
 public:
-    binop_add(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
-        : expr_binop(name, lhs, rhs) {}
+    binop_add(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
+        : expr_binop(name, lhs, rhs, ty) {}
 
     virtual void clone(std::shared_ptr<binop_add>& node) {node = std::make_shared<binop_add>(*this);}
 
@@ -274,8 +271,8 @@ public:
 
 class binop_sub : public expr_binop {
 public:
-    binop_sub(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
-        : expr_binop(name, lhs, rhs) {}
+    binop_sub(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
+        : expr_binop(name, lhs, rhs, ty) {}
 
     virtual void clone(std::shared_ptr<binop_sub>& node) {node = std::make_shared<binop_sub>(*this);}
 
@@ -289,8 +286,8 @@ public:
 
 class binop_mul : public expr_binop {
 public:
-    binop_mul(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
-        : expr_binop(name, lhs, rhs) {}
+    binop_mul(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
+        : expr_binop(name, lhs, rhs, ty) {}
 
     virtual void clone(std::shared_ptr<binop_mul>& node) {node = std::make_shared<binop_mul>(*this);}
 
@@ -304,8 +301,8 @@ public:
 
 class binop_div : public expr_binop {
 public:
-    binop_div(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
-        : expr_binop(name, lhs, rhs) {}
+    binop_div(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
+        : expr_binop(name, lhs, rhs, ty) {}
 
     virtual void clone(std::shared_ptr<binop_div>& node) {node = std::make_shared<binop_div>(*this);}
 
@@ -319,8 +316,8 @@ public:
 
 class binop_lt : public expr_binop {
 public:
-    binop_lt(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
-        : expr_binop(name, lhs, rhs) {}
+    binop_lt(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
+        : expr_binop(name, lhs, rhs, ty) {}
 
     virtual void clone(std::shared_ptr<binop_lt>& node) {node = std::make_shared<binop_lt>(*this);}
 
@@ -333,8 +330,8 @@ public:
 
 class binop_gt : public expr_binop {
 public:
-    binop_gt(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
-        : expr_binop(name, lhs, rhs) {}
+    binop_gt(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
+        : expr_binop(name, lhs, rhs, ty) {}
 
     virtual void clone(std::shared_ptr<binop_gt>& node) {node = std::make_shared<binop_gt>(*this);}
 
@@ -347,8 +344,8 @@ public:
 
 class binop_lte : public expr_binop {
 public:
-    binop_lte(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
-        : expr_binop(name, lhs, rhs) {}
+    binop_lte(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
+        : expr_binop(name, lhs, rhs, ty) {}
 
     virtual void clone(std::shared_ptr<binop_lte>& node) {node = std::make_shared<binop_lte>(*this);}
 
@@ -361,8 +358,8 @@ public:
 
 class binop_gte : public expr_binop {
 public:
-    binop_gte(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
-        : expr_binop(name, lhs, rhs) {}
+    binop_gte(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
+        : expr_binop(name, lhs, rhs, ty) {}
 
     virtual void clone(std::shared_ptr<binop_gte>& node) {node = std::make_shared<binop_gte>(*this);}
 
@@ -375,8 +372,8 @@ public:
 
 class binop_eq : public expr_binop {
 public:
-    binop_eq(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
-        : expr_binop(name, lhs, rhs) {}
+    binop_eq(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
+        : expr_binop(name, lhs, rhs, ty) {}
 
     virtual void clone(std::shared_ptr<binop_eq>& node) {node = std::make_shared<binop_eq>(*this);}
 

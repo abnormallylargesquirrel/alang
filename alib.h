@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-    void printI64(std::int64_t n);
+    void printInt(std::int64_t n);
     void printDbl(double n);
 
 #ifdef __cplusplus

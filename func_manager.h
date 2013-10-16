@@ -17,7 +17,7 @@ class func_manager {
 public:
     func_manager()
     {
-        _lookup_type["i64"] = eval_t::ev_int64;
+        _lookup_type["int"] = eval_t::ev_int;
         _lookup_type["float"] = eval_t::ev_float;
         _lookup_type["void"] = eval_t::ev_void;
     }

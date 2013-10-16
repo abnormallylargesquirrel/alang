@@ -102,33 +102,39 @@ shared_expr parser::p_expr_binop(int expr_prec, shared_expr lhs)
 			rhs = p_expr_binop(tok_prec + 1, rhs);
 		}
 
+        eval_t op_type;
+        if(ret.back() == '.')
+            op_type = eval_t::ev_float;
+        else
+            op_type = eval_t::ev_int;
+
         switch(ret_tok.type()) {
             case tok::add:
-                lhs = std::make_shared<binop_add>(ret, lhs, rhs);
+                lhs = std::make_shared<binop_add>(ret, lhs, rhs, op_type);
                 break;
             case tok::sub:
-                lhs = std::make_shared<binop_sub>(ret, lhs, rhs);
+                lhs = std::make_shared<binop_sub>(ret, lhs, rhs, op_type);
                 break;
             case tok::mul:
-                lhs = std::make_shared<binop_mul>(ret, lhs, rhs);
+                lhs = std::make_shared<binop_mul>(ret, lhs, rhs, op_type);
                 break;
             case tok::div:
-                lhs = std::make_shared<binop_div>(ret, lhs, rhs);
+                lhs = std::make_shared<binop_div>(ret, lhs, rhs, op_type);
                 break;
             case tok::lt:
-                lhs = std::make_shared<binop_lt>(ret, lhs, rhs);
+                lhs = std::make_shared<binop_lt>(ret, lhs, rhs, op_type);
                 break;
             case tok::gt:
-                lhs = std::make_shared<binop_gt>(ret, lhs, rhs);
+                lhs = std::make_shared<binop_gt>(ret, lhs, rhs, op_type);
                 break;
             case tok::lte:
-                lhs = std::make_shared<binop_lte>(ret, lhs, rhs);
+                lhs = std::make_shared<binop_lte>(ret, lhs, rhs, op_type);
                 break;
             case tok::gte:
-                lhs = std::make_shared<binop_gte>(ret, lhs, rhs);
+                lhs = std::make_shared<binop_gte>(ret, lhs, rhs, op_type);
                 break;
             case tok::eq:
-                lhs = std::make_shared<binop_eq>(ret, lhs, rhs);
+                lhs = std::make_shared<binop_eq>(ret, lhs, rhs, op_type);
                 break;
             default:
                 throw std::runtime_error("Unknown token type as binary operator");
