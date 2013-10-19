@@ -2,24 +2,28 @@
 
 type_variable::type_variable() : _id() {}
 type_variable::type_variable(const std::size_t i) : _id(i) {}
+type_variable::type_variable(const std::size_t i, std::set<std::size_t>&& ctx)
+    : _id(i), _ctx(std::move(ctx)) {}
 
 std::size_t type_variable::id() const {return _id;}
-bool type_variable::operator==(const type_variable& other) const {return id() == other.id();}
+void type_variable::set_id(std::size_t id) {_id = id;}
+bool type_variable::operator==(const type_variable& other) const
+{
+    return (_id == other._id && _ctx == other._ctx); // used in unifier::operator(), switch whether contexts are equal
+    //return (_id == other._id);
+}
 bool type_variable::operator!=(const type_variable& other) const {return !(*this == other);}
-bool type_variable::operator<(const type_variable& other) const {return id() < other.id();}
 type_variable::operator std::size_t(void) const {return id();}
+
+std::set<std::size_t>::iterator type_variable::begin() {return _ctx.begin();}
+std::set<std::size_t>::iterator type_variable::end() {return _ctx.end();}
+
+std::set<std::size_t>::iterator type_variable::begin() const {return _ctx.begin();}
+std::set<std::size_t>::iterator type_variable::end() const {return _ctx.end();}
 
 type_operator::type_operator(const type_operator& other)
     : std::vector<type>(other), _types(other._types), _kind(other._kind) {}
 type_operator::type_operator(const std::size_t kind) : _kind(kind) {}
-
-/*template<class Iter>
-type_operator::type_operator(const std::size_t kind, Iter first, Iter last)
-    : std::vector<type>(first, last), _kind(kind) {}*/
-
-/*template<class Range>
-type_operator::type_operator(const std::size_t kind, const Range& r)
-    : std::vector<type>(r.begin(), r.end()), _kind(kind) {}*/
 
 type_operator::type_operator(const std::size_t kind, std::initializer_list<type>&& types)
     : std::vector<type>(types), _kind(kind) {}
@@ -55,8 +59,9 @@ void replace(type& x, const type_variable& replaced, const type& replacer)
             f(i);
     } else {
         auto& var = boost::get<type_variable>(x);
-        if(var == replaced)
+        if(var.id() == replaced.id()) {
             x = replacer;
+        }
     }
 }
 
@@ -75,32 +80,12 @@ bool occurs(const type& haystack, const type_variable& needle)
     return result;
 }
 
-equals_variable::equals_variable(const type_variable& x) : _x(x) {}
-
-bool equals_variable::operator()(const type_variable& y) {return _x == y;} //const function?
-bool equals_variable::operator()(const type_operator&) {return false;}
-
-replacer::replacer(const type_variable& replaced) : _replaced(replaced) {}
-
-void replacer::operator()(type_variable& var, const type_variable& replacement)
+void unifier::operator()(const type_variable& x, type_variable& y)
 {
-    if(var == _replaced)
-        var = replacement;
-}
-
-/*template<class T>
-    void replacer::operator()(type_operator& op, const T& replacement)
-    {
-        auto visitor = boost::apply_visitor(*this);
-        auto f = std::bind(visitor, std::placeholders::_2, replacement);
-        for(auto& i : op)
-            f(i);
-    }*/
-
-void unifier::operator()(const type_variable& x, const type_variable& y)
-{
-    if(x != y)
+    if(x != y) {
+        y.insert(x.begin(), x.end());
         eliminate(x, y);
+    }
 }
 
 void unifier::operator()(const type_variable& x, const type_operator& y)
@@ -155,11 +140,9 @@ void unifier::eliminate(const type_variable& x, const type& y) //replace all occ
 }
 }
 
-//template<>
 void unify(const type& x, const type& y, std::map<type_variable, type>& substitution)
 {
     auto c = constraint(x, y);
     detail::unifier u(&c, &c + 1, substitution);
     u();
-    //unify(&c, &c + 1, substitution);
 }

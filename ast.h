@@ -93,7 +93,7 @@ public:
 	ast_expr(const std::string& name) : ast(name) {set_eval_type(eval_t::ev_invalid);}
 };
 
-class expr_int : public ast_expr { //tok::val_int
+class expr_int : public ast_expr { //tok::literal_int
 public:
 	expr_int(const std::string& name)
 		: ast_expr(name) {set_eval_type(eval_t::ev_int);}
@@ -109,7 +109,7 @@ public:
     }*/
 };
 
-class expr_float : public ast_expr { //tok::val_int
+class expr_float : public ast_expr { //tok::literal_float
 public:
 	expr_float(const std::string& name)
 		: ast_expr(name) {set_eval_type(eval_t::ev_float);}
@@ -151,7 +151,7 @@ public:
     }*/
 };
 
-class expr_call : public ast_expr { //tok::call
+/*class expr_call : public ast_expr { //tok::call
 public:
 	expr_call(const std::string& name, const std::vector<shared_expr>& args)
 		: ast_expr(name)
@@ -162,15 +162,15 @@ public:
 
     virtual void clone(std::shared_ptr<expr_call>& node) {node = std::make_shared<expr_call>(*this);}
 
-    /*llvm::Value *gen_val(jit_engine&)
+    llvm::Value *gen_val(jit_engine&)
     {
         //std::cout << "expr_call" << std::endl;
         //return je.visitor_gen_val(*this);
         return nullptr;
-    }*/
+    }
 
     //eval_t resolve_types(jit_engine&) {return je.resolve_types(*this);}
-};
+};*/
 
 class expr_apply : public ast_expr {
 public:
@@ -199,6 +199,15 @@ public:
     {
         throw std::runtime_error("gen_val called on apply");
     }*/
+};
+
+class binop_apply : public expr_apply {
+public:
+    binop_apply(const shared_expr& func, const shared_expr& arg)
+        : expr_apply(func, arg) {}
+
+    virtual void clone(std::shared_ptr<binop_apply>& node) {node = std::make_shared<binop_apply>(*this);}
+    virtual type infer_type(inferencer& inf);
 };
 
 class expr_if : public ast_expr { //tok::t_if
@@ -230,159 +239,165 @@ public:
     //eval_t resolve_types(jit_engine&) {return je.resolve_types(*this);}
 };
 
-class expr_binop : public ast_expr { //'+' | '-' | '*' | '/' | '<' | '>'
-public:
-	expr_binop(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
-		: ast_expr(name)
-	{
-		add_node(lhs);
-		add_node(rhs);
-
-        set_eval_type(ty);
-
-		/*auto t1 = lhs->eval_type();
-		auto t2 = rhs->eval_type();
-		if(t1 == t2) {
-			set_eval_type(t1);
-		}*/
-	}
-
-    virtual void clone(std::shared_ptr<expr_binop>& node) {node = std::make_shared<expr_binop>(*this);}
-    virtual type infer_type(inferencer& inf);
-
-    //llvm::Value *gen_val(jit_engine&) {return je.visitor_gen_val(*this);}
-};
-
-
-class binop_add : public expr_binop {
-public:
-    binop_add(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
-        : expr_binop(name, lhs, rhs, ty) {}
-
-    virtual void clone(std::shared_ptr<binop_add>& node) {node = std::make_shared<binop_add>(*this);}
-
-    /*llvm::Value *gen_val(jit_engine&)
-    {
-        //std::cout << "binop_add" << std::endl;
-        //return je.visitor_gen_val(*this);
-        return nullptr;
-    }*/
-};
-
-class binop_sub : public expr_binop {
-public:
-    binop_sub(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
-        : expr_binop(name, lhs, rhs, ty) {}
-
-    virtual void clone(std::shared_ptr<binop_sub>& node) {node = std::make_shared<binop_sub>(*this);}
-
-    /*llvm::Value *gen_val(jit_engine&)
-    {
-        //std::cout << "binop_sub" << std::endl;
-        //return je.visitor_gen_val(*this);
-        return nullptr;
-    }*/
-};
-
-class binop_mul : public expr_binop {
-public:
-    binop_mul(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
-        : expr_binop(name, lhs, rhs, ty) {}
-
-    virtual void clone(std::shared_ptr<binop_mul>& node) {node = std::make_shared<binop_mul>(*this);}
-
-    /*llvm::Value *gen_val(jit_engine&)
-    {
-        //std::cout << "binop_mul" << std::endl;
-        //return je.visitor_gen_val(*this);
-        return nullptr;
-    }*/
-};
-
-class binop_div : public expr_binop {
-public:
-    binop_div(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
-        : expr_binop(name, lhs, rhs, ty) {}
-
-    virtual void clone(std::shared_ptr<binop_div>& node) {node = std::make_shared<binop_div>(*this);}
-
-    /*llvm::Value *gen_val(jit_engine&)
-    {
-        //std::cout << "binop_div" << std::endl;
-        //return je.visitor_gen_val(*this);
-        return nullptr;
-    }*/
-};
-
-class binop_lt : public expr_binop {
-public:
-    binop_lt(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
-        : expr_binop(name, lhs, rhs, ty) {}
-
-    virtual void clone(std::shared_ptr<binop_lt>& node) {node = std::make_shared<binop_lt>(*this);}
-
-    /*llvm::Value *gen_val(jit_engine&)
-    {
-        //return je.visitor_gen_val(*this);
-        return nullptr;
-    }*/
-};
-
-class binop_gt : public expr_binop {
-public:
-    binop_gt(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
-        : expr_binop(name, lhs, rhs, ty) {}
-
-    virtual void clone(std::shared_ptr<binop_gt>& node) {node = std::make_shared<binop_gt>(*this);}
-
-    /*llvm::Value *gen_val(jit_engine&)
-    {
-        //return je.visitor_gen_val(*this);
-        return nullptr;
-    }*/
-};
-
-class binop_lte : public expr_binop {
-public:
-    binop_lte(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
-        : expr_binop(name, lhs, rhs, ty) {}
-
-    virtual void clone(std::shared_ptr<binop_lte>& node) {node = std::make_shared<binop_lte>(*this);}
-
-    /*llvm::Value *gen_val(jit_engine&)
-    {
-        //return je.visitor_gen_val(*this);
-        return nullptr;
-    }*/
-};
-
-class binop_gte : public expr_binop {
-public:
-    binop_gte(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
-        : expr_binop(name, lhs, rhs, ty) {}
-
-    virtual void clone(std::shared_ptr<binop_gte>& node) {node = std::make_shared<binop_gte>(*this);}
-
-    /*llvm::Value *gen_val(jit_engine&)
-    {
-        //return je.visitor_gen_val(*this);
-        return nullptr;
-    }*/
-};
-
-class binop_eq : public expr_binop {
-public:
-    binop_eq(const std::string& name, const shared_expr& lhs, const shared_expr& rhs, eval_t ty)
-        : expr_binop(name, lhs, rhs, ty) {}
-
-    virtual void clone(std::shared_ptr<binop_eq>& node) {node = std::make_shared<binop_eq>(*this);}
-
-    /*llvm::Value *gen_val(jit_engine&)
-    {
-        //return je.visitor_gen_val(*this);
-        return nullptr;
-    }*/
-};
+//class expr_binop : public ast_expr { //'+' | '-' | '*' | '/' | '<' | '>'
+//public:
+//	expr_binop(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
+//		: ast_expr(name)
+//	{
+//		add_node(lhs);
+//		add_node(rhs);
+//
+//		/*auto t1 = lhs->eval_type();
+//		auto t2 = rhs->eval_type();
+//		if(t1 == t2) {
+//			set_eval_type(t1);
+//		}*/
+//	}
+//
+//    virtual void clone(std::shared_ptr<expr_binop>& node) {node = std::make_shared<expr_binop>(*this);}
+//
+//    //llvm::Value *gen_val(jit_engine&) {return je.visitor_gen_val(*this);}
+//};
+//
+//
+//class binop_add : public expr_binop {
+//public:
+//    binop_add(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
+//        : expr_binop(name, lhs, rhs) {}
+//
+//    virtual void clone(std::shared_ptr<binop_add>& node) {node = std::make_shared<binop_add>(*this);}
+//    virtual type infer_type(inferencer& inf);
+//
+//    /*llvm::Value *gen_val(jit_engine&)
+//    {
+//        //std::cout << "binop_add" << std::endl;
+//        //return je.visitor_gen_val(*this);
+//        return nullptr;
+//    }*/
+//};
+//
+//class binop_sub : public expr_binop {
+//public:
+//    binop_sub(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
+//        : expr_binop(name, lhs, rhs) {}
+//
+//    virtual void clone(std::shared_ptr<binop_sub>& node) {node = std::make_shared<binop_sub>(*this);}
+//    virtual type infer_type(inferencer& inf);
+//
+//    /*llvm::Value *gen_val(jit_engine&)
+//    {
+//        //std::cout << "binop_sub" << std::endl;
+//        //return je.visitor_gen_val(*this);
+//        return nullptr;
+//    }*/
+//};
+//
+//class binop_mul : public expr_binop {
+//public:
+//    binop_mul(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
+//        : expr_binop(name, lhs, rhs) {}
+//
+//    virtual void clone(std::shared_ptr<binop_mul>& node) {node = std::make_shared<binop_mul>(*this);}
+//    virtual type infer_type(inferencer& inf);
+//
+//    /*llvm::Value *gen_val(jit_engine&)
+//    {
+//        //std::cout << "binop_mul" << std::endl;
+//        //return je.visitor_gen_val(*this);
+//        return nullptr;
+//    }*/
+//};
+//
+//class binop_div : public expr_binop {
+//public:
+//    binop_div(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
+//        : expr_binop(name, lhs, rhs) {}
+//
+//    virtual void clone(std::shared_ptr<binop_div>& node) {node = std::make_shared<binop_div>(*this);}
+//    virtual type infer_type(inferencer& inf);
+//
+//    /*llvm::Value *gen_val(jit_engine&)
+//    {
+//        //std::cout << "binop_div" << std::endl;
+//        //return je.visitor_gen_val(*this);
+//        return nullptr;
+//    }*/
+//};
+//
+//class binop_lt : public expr_binop {
+//public:
+//    binop_lt(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
+//        : expr_binop(name, lhs, rhs) {}
+//
+//    virtual void clone(std::shared_ptr<binop_lt>& node) {node = std::make_shared<binop_lt>(*this);}
+//    virtual type infer_type(inferencer& inf);
+//
+//    /*llvm::Value *gen_val(jit_engine&)
+//    {
+//        //return je.visitor_gen_val(*this);
+//        return nullptr;
+//    }*/
+//};
+//
+//class binop_gt : public expr_binop {
+//public:
+//    binop_gt(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
+//        : expr_binop(name, lhs, rhs) {}
+//
+//    virtual void clone(std::shared_ptr<binop_gt>& node) {node = std::make_shared<binop_gt>(*this);}
+//    virtual type infer_type(inferencer& inf);
+//
+//    /*llvm::Value *gen_val(jit_engine&)
+//    {
+//        //return je.visitor_gen_val(*this);
+//        return nullptr;
+//    }*/
+//};
+//
+//class binop_lte : public expr_binop {
+//public:
+//    binop_lte(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
+//        : expr_binop(name, lhs, rhs) {}
+//
+//    virtual void clone(std::shared_ptr<binop_lte>& node) {node = std::make_shared<binop_lte>(*this);}
+//    virtual type infer_type(inferencer& inf);
+//
+//    /*llvm::Value *gen_val(jit_engine&)
+//    {
+//        //return je.visitor_gen_val(*this);
+//        return nullptr;
+//    }*/
+//};
+//
+//class binop_gte : public expr_binop {
+//public:
+//    binop_gte(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
+//        : expr_binop(name, lhs, rhs) {}
+//
+//    virtual void clone(std::shared_ptr<binop_gte>& node) {node = std::make_shared<binop_gte>(*this);}
+//    virtual type infer_type(inferencer& inf);
+//
+//    /*llvm::Value *gen_val(jit_engine&)
+//    {
+//        //return je.visitor_gen_val(*this);
+//        return nullptr;
+//    }*/
+//};
+//
+//class binop_eq : public expr_binop {
+//public:
+//    binop_eq(const std::string& name, const shared_expr& lhs, const shared_expr& rhs)
+//        : expr_binop(name, lhs, rhs) {}
+//
+//    virtual void clone(std::shared_ptr<binop_eq>& node) {node = std::make_shared<binop_eq>(*this);}
+//    virtual type infer_type(inferencer& inf);
+//
+//    /*llvm::Value *gen_val(jit_engine&)
+//    {
+//        //return je.visitor_gen_val(*this);
+//        return nullptr;
+//    }*/
+//};
 
 class ast_proto : public ast { //tok::proto
 public:

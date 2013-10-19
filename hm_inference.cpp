@@ -1,35 +1,36 @@
 #include "hm_inference.h"
 #include "func_manager.h"
 #include "eval_t.h"
+#include "utils.h"
 
 type make_function(const type& arg, const type& result)
 {
-    return type_operator(types::ev_function, {arg, result});
+    return type_operator(types::Function, {arg, result});
 }
 
 type ty_void(void)
 {
-    return type_operator(types::ev_void);
+    return type_operator(types::Void);
 }
 
 type ty_integer(void)
 {
-    return type_operator(types::ev_integer);
+    return type_operator(types::Int);
 }
 
 type ty_float(void)
 {
-    return type_operator(types::ev_float);
+    return type_operator(types::Float);
 }
 
 type ty_bool(void)
 {
-    return type_operator(types::ev_bool);
+    return type_operator(types::Bool);
 }
 
 type ty_pair(const type& first, const type& second)
 {
-    return type_operator(types::ev_pair, {first, second});
+    return type_operator(types::Pair, {first, second});
 }
 
 type definitive(const std::map<type_variable, type>& substitution, const type_variable& x)
@@ -45,15 +46,6 @@ type definitive(const std::map<type_variable, type>& substitution, const type_va
     return result;
 }
 
-type definitive(const std::map<type_variable, type>& substitution, const type& x)
-{
-    if(x.which() == 0) { // type_variable
-        return definitive(substitution, boost::get<type_variable>(x));
-    }
-
-    return x;
-}
-
 // environment
 environment::environment() : _next_id(0) {}
 std::size_t environment::unique_id() {return _next_id++;}
@@ -67,7 +59,7 @@ type_variable fresh_maker::operator()(const type_variable& var)
 {
     if(is_generic(var)) { // generic variables are duplicated, non-generic are shared
         if(!_mappings.count(var)) {
-            _mappings[var] = type_variable(_env.unique_id());
+            _mappings[var] = type_variable(_env.unique_id(), var.begin(), var.end());
         }
 
         return _mappings[var];
@@ -102,7 +94,7 @@ bool fresh_maker::is_generic(const type_variable& var) const
 {
     bool occurs = false;
 
-    for(auto& i : _non_generic) { //try standard for on iter
+    for(auto& i : _non_generic) {
         occurs = detail::occurs(definitive(_substitution, i), var);
 
         if(occurs)
@@ -127,10 +119,10 @@ type inferencer::operator()(expr_sym& id)
     if(!_environment.count(id_name))
     {
         _dependencies[id_name].insert(_cur_func_name);
+        _unbound_vars = true;
         return type_variable(_environment.unique_id());
     }
 
-    //auto freshen = definitive(_substitution, _environment[id.node_str()]);
     auto freshen = _environment[id_name];
     auto v = fresh_maker(_environment, _non_generic_variables, _substitution);
 
@@ -139,13 +131,31 @@ type inferencer::operator()(expr_sym& id)
 
 type inferencer::operator()(expr_apply& app)
 {
-    auto fun_type = app[0]->infer_type(*this); // look at func_template, not string
+    auto fun_type = app[0]->infer_type(*this); // might infer types more than once if app[0] is the function node
     auto arg_type = app[1]->infer_type(*this);
+
+    /*type_printer pp(std::cout);
+    std::cout << "(in " << _cur_func_name << ") ";
+    std::cout << app.node_str() << ":";
+    pp << fun_type;
+    std::cout << "  ";
+    pp << arg_type;
+    std::cout << '\n';*/
 
     type_variable x(_environment.unique_id());
     auto lhs = make_function(arg_type, x);
-
     unify(lhs, fun_type, _substitution);
+
+    /*std::cout << "lhs: ";
+    pp << lhs;
+    std::cout << "\nfun_type: ";
+    pp << fun_type;
+    std::cout << "\nreturn type: ";
+    auto ret = definitive(_substitution, x);
+    pp << ret;
+    std::cout << "\n";
+
+    std::cout << std::endl;*/
     return definitive(_substitution, x);
 }
 
@@ -159,32 +169,34 @@ type inferencer::operator()(expr_if& e)
     return then_type;
 }
 
-type inferencer::operator()(expr_binop& e)
+type inferencer::operator()(binop_apply& app)
 {
-    auto arg0_type = e[0]->infer_type(*this);
-    auto arg1_type = e[1]->infer_type(*this);
+    auto fun_type = app[0]->infer_type(*this); // infer expr_apply, returns function, elem 0 is second argument to binop
+    auto arg_type = app[1]->infer_type(*this);
 
-    unify(arg0_type, arg1_type, _substitution);
-    switch(e.eval_type()) {
-        case eval_t::ev_int:
-            unify(arg0_type, ty_integer(), _substitution);
-            break;
-        case eval_t::ev_float:
-            unify(arg0_type, ty_float(), _substitution);
-            break;
-        default:
-            throw std::runtime_error("Invalid type in binary operator");
+    if(fun_type.which()) {
+        auto arg2_type = boost::get<type_operator>(fun_type)[0];
+        unify(arg2_type, arg_type, _substitution); // two arguments to binop are same type
+    } else {
+        throw std::runtime_error("Failed to get argument types for binop - inside application returned type_variable");
     }
 
-    return arg0_type;
+    type_variable x(_environment.unique_id());
+    auto lhs = make_function(arg_type, x);
+
+    unify(lhs, fun_type, _substitution);
+    return definitive(_substitution, x);
 }
 
 type inferencer::operator()(ast_func& f)
 {
-    _cur_func_name = f[0]->node_str();
+    _unbound_vars = false;
+    _cur_func_name = f.node_str(); // to build dependency map
+    std::cout << _cur_func_name << std::endl;
     type_variable tmp_type(_environment.unique_id()); // tmp_type is placeholder for function_type
+
     {
-        scoped_non_generic_variable ng(*this, f[0]->node_str(), tmp_type);
+        scoped_non_generic_variable ng(*this, f.node_str(), tmp_type);
 
         std::vector<type> arg_types;
         std::vector<scoped_non_generic_variable> scope;
@@ -212,13 +224,16 @@ type inferencer::operator()(ast_func& f)
         unify(function_type, tmp_type, _substitution);
 
     } // destruct scoped_non_generic_variable, make non_generic with same name
-    auto ret = definitive(_substitution, tmp_type);
-    _environment[f[0]->node_str()] = ret;
 
-    auto it = _dependencies.find(f[0]->node_str());
-    if(it != std::end(_dependencies)) {
-        for(auto& i : it->second) {
-            _environment[i] = _fm.lookup_template(i)->infer_type(*this);
+    auto ret = definitive(_substitution, tmp_type);
+    _environment[f.node_str()] = ret;
+
+    if(!_unbound_vars) {
+        auto it = _dependencies.find(f.node_str());
+        if(it != std::end(_dependencies)) {
+            for(auto& i : it->second) {
+                _environment[i] = _fm.lookup_template(i)->infer_type(*this);
+            }
         }
     }
 

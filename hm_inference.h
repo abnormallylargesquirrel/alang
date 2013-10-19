@@ -13,12 +13,19 @@ class func_manager;
 
 namespace types
 {
-static const int ev_void = 0;
-static const int ev_integer = 1;
-static const int ev_float = 2;
-static const int ev_bool = 3;
-static const int ev_function = 4;
-static const int ev_pair = 5;
+static const int Void = 0;
+static const int Int = 1;
+static const int Float = 2;
+static const int Bool = 3;
+static const int Function = 4;
+static const int Pair = 5;
+}
+
+namespace classes
+{
+static const int Eq = 0;
+static const int Num = 1;
+static const int Ord = 2;
 }
 
 type make_function(const type& arg, const type& result);
@@ -63,8 +70,8 @@ struct inferencer : boost::static_visitor<type> {
     //type operator()(expr_bool&);
     type operator()(expr_sym& id);
     type operator()(expr_apply& app);
+    type operator()(binop_apply& app);
     type operator()(expr_if& e);
-    type operator()(expr_binop& e);
     type operator()(ast_func& f);
 
     struct scoped_generic { // (and non-generic) remove destructor for non-scoped
@@ -122,6 +129,7 @@ struct inferencer : boost::static_visitor<type> {
     std::map<std::string, std::set<std::string>>& _dependencies;
 
     std::string _cur_func_name;
+    bool _unbound_vars;
 };
 
 type infer_type(const shared_ast& node, environment& env, std::map<std::string,

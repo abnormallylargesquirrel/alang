@@ -76,23 +76,23 @@ void lexer::lex_binop(tok& ret)
         _last_char = _is.get();
     }
 
-    if(ret.str() == "+" || ret.str() == "+.") {
+    if(ret.str() == "+") {
         ret.set_type(tok::add);
-    } else if(ret.str() == "-" || ret.str() == "-.") {
+    } else if(ret.str() == "-") {
         ret.set_type(tok::sub);
-    } else if(ret.str() == "*" || ret.str() == "*.") {
+    } else if(ret.str() == "*") {
         ret.set_type(tok::mul);
-    } else if(ret.str() == "/" || ret.str() == "/.") {
+    } else if(ret.str() == "/") {
         ret.set_type(tok::div);
-    } else if(ret.str() == "<" || ret.str() == "<.") {
+    } else if(ret.str() == "<") {
         ret.set_type(tok::lt);
-    } else if(ret.str() == ">" || ret.str() == ">.") {
+    } else if(ret.str() == ">") {
         ret.set_type(tok::gt);
-    } else if(ret.str() == "<=" || ret.str() == "<=.") {
+    } else if(ret.str() == "<=") {
         ret.set_type(tok::lte);
-    } else if(ret.str() == ">=" || ret.str() == ">=.") {
+    } else if(ret.str() == ">=") {
         ret.set_type(tok::gte);
-    } else if(ret.str() == "==" || ret.str() == "==.") {
+    } else if(ret.str() == "==") {
         ret.set_type(tok::eq);
     }
     /*if(is_binop(ret.str()))

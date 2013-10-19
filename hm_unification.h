@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <map>
+#include <set>
 #include <algorithm>
 #include <functional>
 #include <stdexcept>
@@ -23,15 +24,32 @@ class type_variable {
 public:
     type_variable();
     type_variable(const std::size_t i);
+    template<class Iter>
+    type_variable(const std::size_t i, Iter first, Iter last)
+        : _id(i), _ctx(first, last) {}
+    type_variable(const std::size_t i, std::set<std::size_t>&& ctx);
 
     std::size_t id() const;
+    void set_id(std::size_t id);
     bool operator==(const type_variable& other) const;
     bool operator!=(const type_variable& other) const;
-    bool operator<(const type_variable& other) const;
     operator std::size_t(void) const;
+
+    std::set<std::size_t>::iterator begin(void);
+    std::set<std::size_t>::iterator end(void);
+
+    std::set<std::size_t>::iterator begin() const;
+    std::set<std::size_t>::iterator end() const;
+
+    template<class Iter>
+    void insert(Iter first, Iter last)
+    {
+        _ctx.insert(first, last);
+    }
 
 private:
     std::size_t _id;
+    std::set<std::size_t> _ctx;
 };
 
 class type_operator : private std::vector<type> {
@@ -90,35 +108,9 @@ namespace detail
 void replace(type& x, const type_variable& replaced, const type& replacer);
 bool occurs(const type& haystack, const type_variable& needle);
 
-struct equals_variable : boost::static_visitor<bool> {
-    equals_variable(const type_variable& x);
-
-    bool operator()(const type_variable& y);
-    bool operator()(const type_operator&);
-
-    const type_variable& _x;
-};
-
-struct replacer : boost::static_visitor<> {
-    replacer(const type_variable& replaced);
-
-    void operator()(type_variable& var, const type_variable& replacement);
-
-    template<class T>
-    void operator()(type_operator& op, const T& replacement)
-    {
-        auto visitor = boost::apply_visitor(*this);
-        auto f = std::bind(visitor, std::placeholders::_2, replacement);
-        for(auto& i : op)
-            f(i);
-    }
-
-    const type_variable& _replaced;
-};
-
 class unifier : public boost::static_visitor<> {
 public:
-    void operator()(const type_variable& x, const type_variable& y);
+    void operator()(const type_variable& x, type_variable& y);
     void operator()(const type_variable& x, const type_operator& y);
     void operator()(const type_operator& x, const type_variable& y);
     void operator()(const type_operator& x, const type_operator& y);
@@ -142,28 +134,6 @@ private:
 };
 } //detail
 
-/*template<class Iter>
-void unify(Iter first_constraint, Iter last_constraint, std::map<type_variable, type>& substitution)
-{
-    detail::unifier u(first_constraint, last_constraint, substitution);
-    u();
-}
-
-template<class Range>
-void unify(const Range& r, std::map<type_variable, type>& substitution)
-{
-    unify(r.begin(), r.end(), substitution);
-}*/
-
-//template<>
 void unify(const type& x, const type& y, std::map<type_variable, type>& substitution);
-
-/*template<class Range>
-std::map<type_variable, type> unify(const Range& r)
-{
-    std::map<type_variable, type> solutions;
-    unify(r, solutions);
-    return std::move(solutions);
-}*/
 
 #endif

@@ -12,39 +12,55 @@ public:
 
     type_printer& operator()(const type_variable& x)
     {
-        if(!_names.count(x)) {
+        _os << '{';
+        for(const auto& i : x) {
+            switch(i) {
+                case classes::Num:
+                    _os << "Num ";
+                    break;
+                case classes::Ord:
+                    _os << "Ord ";
+                    break;
+                case classes::Eq:
+                    _os << "Eq ";
+                    break;
+                default:
+                    break;
+            }
+        }
+        if(!_names.count(x.id())) {
             std::ostringstream os;
             os << _next_name++;
-            _names[x] = os.str();
+            _names[x.id()] = os.str();
         }
 
-        _os << _names[x];
+        _os << _names[x.id()] << '}';
         return *this;
     }
 
     type_printer& operator()(const type_operator& x)
     {
         switch(x.kind()) {
-            case types::ev_void:
-                _os << "void";
+            case types::Void:
+                _os << "Void";
                 break;
-            case types::ev_integer:
-                _os << "int";
+            case types::Int:
+                _os << "Int";
                 break;
-            case types::ev_bool:
-                _os << "bool";
+            case types::Bool:
+                _os << "Bool";
                 break;
-            case types::ev_float:
-                _os << "float";
+            case types::Float:
+                _os << "Float";
                 break;
-            case types::ev_function:
+            case types::Function:
                 _os << "(";
                 *this << x[0];
                 _os << " -> ";
                 *this << x[1];
                 _os << ")";
                 break;
-            case types::ev_pair:
+            case types::Pair:
                 _os << "(";
                 *this << x[0];
                 _os << " * ";
@@ -78,7 +94,7 @@ public:
 
 private:
     std::ostream& _os;
-    std::map<type_variable, std::string> _names;
+    std::map<std::size_t, std::string> _names;
     char _next_name;
 };
 
@@ -98,7 +114,35 @@ inline std::ostream& operator<<(std::ostream& os, const type_operator& x)
 
 struct try_infer {
     try_infer(environment& e, std::map<std::string, std::set<std::string>>& dependencies, func_manager& fm)
-        : _env(e), _dependencies(dependencies), _fm(fm) {}
+        : _env(e), _dependencies(dependencies), _fm(fm)
+    {
+        type_variable v0(_env.unique_id(), {classes::Num});
+        _env["+"] = make_function(v0, make_function(v0, v0));
+
+        type_variable v1(_env.unique_id(), {classes::Num});
+        _env["-"] = make_function(v1, make_function(v1, v1));
+
+        type_variable v2(_env.unique_id(), {classes::Num});
+        _env["*"] = make_function(v2, make_function(v2, v2));
+
+        type_variable v3(_env.unique_id(), {classes::Num});
+        _env["/"] = make_function(v3, make_function(v3, v3));
+
+        type_variable v4(_env.unique_id(), {classes::Ord});
+        _env["<"] = make_function(v4, make_function(v4, ty_bool()));
+
+        type_variable v5(_env.unique_id(), {classes::Ord});
+        _env[">"] = make_function(v5, make_function(v5, ty_bool()));
+
+        type_variable v6(_env.unique_id(), {classes::Ord, classes::Eq});
+        _env["<="] = make_function(v6, make_function(v6, ty_bool()));
+
+        type_variable v7(_env.unique_id(), {classes::Ord, classes::Eq});
+        _env[">="] = make_function(v7, make_function(v7, ty_bool()));
+
+        type_variable v8(_env.unique_id(), {classes::Eq});
+        _env["=="] = make_function(v8, make_function(v8, ty_bool()));
+    }
 
     void operator()(const shared_ast& n) const
     {
