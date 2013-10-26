@@ -105,9 +105,10 @@ int main(int argc, char **argv)
     //jit_engine je(fm); // must follow InitializeNativeTarget()
 
     ast root;
+    contexts ctxs;
     environment env;
     std::map<std::string, std::set<std::string>> dependencies;
-    try_infer infer(env, dependencies, fm);
+    try_infer infer(ctxs, env, dependencies, fm);
 
     main_handler handler(p, root, fm);
     try
@@ -124,6 +125,8 @@ int main(int argc, char **argv)
         for(auto& i : fm)
             infer(i.second);
         //infer((*root[0])[1]);
+
+        infer.propagate_contexts();
 
         //for(auto& i : env)
             //std::cout << i.first << " " << i.second << std::endl;

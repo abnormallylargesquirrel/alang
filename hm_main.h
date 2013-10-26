@@ -13,6 +13,8 @@ public:
     type_printer& operator()(const type_variable& x)
     {
         _os << '{';
+        //for(const auto& i : x.get_ctx()) {
+        //for(auto i = x.ctx()->begin(); i != x.ctx()->end(); i++) {
         for(const auto& i : x) {
             switch(i) {
                 case classes::Num:
@@ -113,34 +115,34 @@ inline std::ostream& operator<<(std::ostream& os, const type_operator& x)
 }
 
 struct try_infer {
-    try_infer(environment& e, std::map<std::string, std::set<std::string>>& dependencies, func_manager& fm)
-        : _env(e), _dependencies(dependencies), _fm(fm)
+    try_infer(contexts& ctxs, environment& e, std::map<std::string, std::set<std::string>>& dependencies, func_manager& fm)
+        : _ctxs(ctxs), _env(e), _dependencies(dependencies), _fm(fm)
     {
-        type_variable v0(_env.unique_id(), {classes::Num});
+        type_variable v0(_ctxs, _env.unique_id(), {classes::Num});
         _env["+"] = make_function(v0, make_function(v0, v0));
 
-        type_variable v1(_env.unique_id(), {classes::Num});
+        type_variable v1(_ctxs, _env.unique_id(), {classes::Num});
         _env["-"] = make_function(v1, make_function(v1, v1));
 
-        type_variable v2(_env.unique_id(), {classes::Num});
+        type_variable v2(_ctxs, _env.unique_id(), {classes::Num});
         _env["*"] = make_function(v2, make_function(v2, v2));
 
-        type_variable v3(_env.unique_id(), {classes::Num});
+        type_variable v3(_ctxs, _env.unique_id(), {classes::Num});
         _env["/"] = make_function(v3, make_function(v3, v3));
 
-        type_variable v4(_env.unique_id(), {classes::Ord});
+        type_variable v4(_ctxs, _env.unique_id(), {classes::Ord});
         _env["<"] = make_function(v4, make_function(v4, ty_bool()));
 
-        type_variable v5(_env.unique_id(), {classes::Ord});
+        type_variable v5(_ctxs, _env.unique_id(), {classes::Ord});
         _env[">"] = make_function(v5, make_function(v5, ty_bool()));
 
-        type_variable v6(_env.unique_id(), {classes::Ord, classes::Eq});
+        type_variable v6(_ctxs, _env.unique_id(), {classes::Ord, classes::Eq});
         _env["<="] = make_function(v6, make_function(v6, ty_bool()));
 
-        type_variable v7(_env.unique_id(), {classes::Ord, classes::Eq});
+        type_variable v7(_ctxs, _env.unique_id(), {classes::Ord, classes::Eq});
         _env[">="] = make_function(v7, make_function(v7, ty_bool()));
 
-        type_variable v8(_env.unique_id(), {classes::Eq});
+        type_variable v8(_ctxs, _env.unique_id(), {classes::Eq});
         _env["=="] = make_function(v8, make_function(v8, ty_bool()));
     }
 
@@ -148,7 +150,7 @@ struct try_infer {
     {
         try
         {
-            auto result = infer_type(n, _env, _dependencies, _fm);
+            auto result = infer_type(n, _ctxs, _env, _dependencies, _fm);
         }
         catch(const recursive_unification& e)
         {
@@ -171,6 +173,28 @@ struct try_infer {
         }
     }
 
+    void propagate_contexts(void)
+    {
+        /*for(const auto& i : _ctxs) {
+            std::cout << i.first << '\n';
+            for(const auto& j : i.second) {
+                std::cout << "    " << j << '\n';
+            }
+            std::cout << std::endl;
+        }*/
+        for(const auto& i : _fm) {
+            auto& t = _env[i.first];
+            if(t.which()) {
+                auto& op = boost::get<type_operator>(t);
+                op.propagate(_ctxs);
+            } else {
+                auto& tv = boost::get<type_variable>(t);
+                tv.propagate(_ctxs);
+            }
+        }
+    }
+
+    contexts& _ctxs;
     environment& _env;
     std::map<std::string, std::set<std::string>>& _dependencies;
     func_manager& _fm;

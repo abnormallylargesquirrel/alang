@@ -45,7 +45,7 @@ private:
 };
 
 struct fresh_maker : boost::static_visitor<type> { // make a copy of a type expression
-    fresh_maker(environment& env, const std::set<type_variable>& non_generic,
+    fresh_maker(contexts& ctxs, environment& env, const std::set<type_variable>& non_generic,
             const std::map<type_variable, type>& substitution);
 
     type_variable operator()(const type_variable& var);
@@ -54,6 +54,7 @@ struct fresh_maker : boost::static_visitor<type> { // make a copy of a type expr
 private:
     bool is_generic(const type_variable& var) const;
 
+    contexts& _ctxs;
     environment& _env;
     const std::set<type_variable>& _non_generic;
     const std::map<type_variable, type>& _substitution;
@@ -61,7 +62,7 @@ private:
 };
 
 struct inferencer : boost::static_visitor<type> {
-    inferencer(environment& env, std::map<std::string,
+    inferencer(contexts& ctxs, environment& env, std::map<std::string,
             std::set<std::string>>& dependencies, func_manager& fm);
 
     type operator()(ast&);
@@ -70,7 +71,6 @@ struct inferencer : boost::static_visitor<type> {
     //type operator()(expr_bool&);
     type operator()(expr_sym& id);
     type operator()(expr_apply& app);
-    type operator()(binop_apply& app);
     type operator()(expr_if& e);
     type operator()(ast_func& f);
 
@@ -123,6 +123,7 @@ struct inferencer : boost::static_visitor<type> {
     };
 
     func_manager& _fm;
+    contexts& _ctxs;
     environment& _environment;
     std::set<type_variable> _non_generic_variables;
     std::map<type_variable, type> _substitution;
@@ -132,7 +133,7 @@ struct inferencer : boost::static_visitor<type> {
     bool _unbound_vars;
 };
 
-type infer_type(const shared_ast& node, environment& env, std::map<std::string,
+type infer_type(const shared_ast& node, contexts& ctxs, environment& env, std::map<std::string,
         std::set<std::string>>& dependencies, func_manager& fm);
 
 #endif

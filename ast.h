@@ -74,10 +74,7 @@ public:
 
     /*virtual llvm::Value *gen_val(jit_engine&) {return nullptr;}
     virtual llvm::Function *gen_func(jit_engine&) {return nullptr;}*/
-
-    //virtual eval_t resolve_types(jit_engine&) {return je.resolve_types(*this);}
 private:
-	//tok _tok;
     std::string _node_str;
 	std::vector<shared_ast> _nodes;
 	eval_t _eval_type;
@@ -168,8 +165,6 @@ public:
         //return je.visitor_gen_val(*this);
         return nullptr;
     }
-
-    //eval_t resolve_types(jit_engine&) {return je.resolve_types(*this);}
 };*/
 
 class expr_apply : public ast_expr {
@@ -201,15 +196,6 @@ public:
     }*/
 };
 
-class binop_apply : public expr_apply {
-public:
-    binop_apply(const shared_expr& func, const shared_expr& arg)
-        : expr_apply(func, arg) {}
-
-    virtual void clone(std::shared_ptr<binop_apply>& node) {node = std::make_shared<binop_apply>(*this);}
-    virtual type infer_type(inferencer& inf);
-};
-
 class expr_if : public ast_expr { //tok::t_if
 public:
     expr_if(const std::string& name, const shared_expr& cond, const shared_expr& thenexpr, const shared_expr& elseexpr)
@@ -219,11 +205,6 @@ public:
         add_node(thenexpr);
         add_node(elseexpr);
 
-        /*auto t1 = thenexpr->eval_type();
-        auto t2 = elseexpr->eval_type();
-        if(t1 == t2) {
-            set_eval_type(t1);
-        }*/
     }
 
     virtual void clone(std::shared_ptr<expr_if>& node) {node = std::make_shared<expr_if>(*this);}
@@ -235,8 +216,6 @@ public:
         //return je.visitor_gen_val(*this);
         return nullptr;
     }*/
-
-    //eval_t resolve_types(jit_engine&) {return je.resolve_types(*this);}
 };
 
 //class expr_binop : public ast_expr { //'+' | '-' | '*' | '/' | '<' | '>'

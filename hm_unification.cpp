@@ -1,19 +1,21 @@
 #include "hm_unification.h"
 
-type_variable::type_variable() : _id() {}
-type_variable::type_variable(const std::size_t i) : _id(i) {}
-type_variable::type_variable(const std::size_t i, std::set<std::size_t>&& ctx)
-    : _id(i), _ctx(std::move(ctx)) {}
-
 std::size_t type_variable::id() const {return _id;}
-void type_variable::set_id(std::size_t id) {_id = id;}
 bool type_variable::operator==(const type_variable& other) const
 {
-    return (_id == other._id && _ctx == other._ctx); // used in unifier::operator(), switch whether contexts are equal
-    //return (_id == other._id);
+    return _id == other._id;
 }
+
 bool type_variable::operator!=(const type_variable& other) const {return !(*this == other);}
-type_variable::operator std::size_t(void) const {return id();}
+type_variable::operator std::size_t(void) const {return _id;}
+
+void type_variable::propagate(contexts& ctxs)
+{
+    auto it = ctxs.find(_id);
+    if(it != ctxs.end()) {
+        _ctx = it->second;
+    }
+}
 
 std::set<std::size_t>::iterator type_variable::begin() {return _ctx.begin();}
 std::set<std::size_t>::iterator type_variable::end() {return _ctx.end();}
@@ -48,6 +50,20 @@ bool type_operator::operator==(const type_operator& other) const
     return compare_kind(other) & std::equal(begin(), end(), other.begin());
 }
 
+void type_operator::propagate(contexts& ctxs)
+{
+    // add check here for _kind valid in context
+    for(auto it = begin(); it != end(); it++) {
+        if(it->which()) {
+            auto& op = boost::get<type_operator>(*it);
+            op.propagate(ctxs);
+        } else {
+            auto& tv = boost::get<type_variable>(*it);
+            tv.propagate(ctxs);
+        }
+    }
+}
+
 namespace detail
 {
 void replace(type& x, const type_variable& replaced, const type& replacer)
@@ -59,7 +75,7 @@ void replace(type& x, const type_variable& replaced, const type& replacer)
             f(i);
     } else {
         auto& var = boost::get<type_variable>(x);
-        if(var.id() == replaced.id()) {
+        if(var == replaced) {
             x = replacer;
         }
     }
@@ -82,8 +98,17 @@ bool occurs(const type& haystack, const type_variable& needle)
 
 void unifier::operator()(const type_variable& x, type_variable& y)
 {
-    if(x != y) {
+    /*if(x.id() != y.id() || !x.same_ctx(y)) {
         y.insert(x.begin(), x.end());
+        eliminate(x, y);
+    }*/
+    if(x != y) {
+        auto it = _ctxs.find(x.id());
+        if(it != _ctxs.end()) {
+            //auto& s = it->second;
+            //_ctxs[y.id()].insert(s.begin(), s.end());
+            _ctxs[y.id()].insert(it->second.begin(), it->second.end());
+        }
         eliminate(x, y);
     }
 }
@@ -93,6 +118,12 @@ void unifier::operator()(const type_variable& x, const type_operator& y)
     if(occurs(y, x))
         throw recursive_unification(x, y);
 
+    /*for(const auto& i : y) {
+        type tx = type(x);
+        type ti = type(i);
+        boost::apply_visitor(*this, tx, ti);
+    }*/
+
     eliminate(x, y);
 }
 
@@ -100,6 +131,12 @@ void unifier::operator()(const type_operator& x, const type_variable& y)
 {
     if(occurs(x, y))
         throw recursive_unification(y, x);
+
+    /*for(const auto& i : x) {
+        type ty = type(y);
+        type ti = type(i);
+        boost::apply_visitor(*this, ty, ti);
+    }*/
 
     eliminate(y, x);
 }
@@ -140,9 +177,9 @@ void unifier::eliminate(const type_variable& x, const type& y) //replace all occ
 }
 }
 
-void unify(const type& x, const type& y, std::map<type_variable, type>& substitution)
+void unify(const type& x, const type& y, contexts& ctxs, std::map<type_variable, type>& substitution)
 {
     auto c = constraint(x, y);
-    detail::unifier u(&c, &c + 1, substitution);
+    detail::unifier u(&c, &c + 1, ctxs, substitution);
     u();
 }

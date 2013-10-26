@@ -104,48 +104,39 @@ shared_expr parser::p_expr_binop(int expr_prec, shared_expr lhs)
 
         switch(ret_tok.type()) {
             case tok::add:
-                //lhs = std::make_shared<binop_add>(ret, lhs, rhs);
-                lhs = std::make_shared<binop_apply>(std::make_shared<expr_apply>
+                lhs = std::make_shared<expr_apply>(std::make_shared<expr_apply>
                         (std::make_shared<expr_sym>(ret), lhs), rhs);
                 break;
             case tok::sub:
-                //lhs = std::make_shared<binop_sub>(ret, lhs, rhs);
-                lhs = std::make_shared<binop_apply>(std::make_shared<expr_apply>
+                lhs = std::make_shared<expr_apply>(std::make_shared<expr_apply>
                         (std::make_shared<expr_sym>(ret), lhs), rhs);
                 break;
             case tok::mul:
-                //lhs = std::make_shared<binop_mul>(ret, lhs, rhs);
-                lhs = std::make_shared<binop_apply>(std::make_shared<expr_apply>
+                lhs = std::make_shared<expr_apply>(std::make_shared<expr_apply>
                         (std::make_shared<expr_sym>(ret), lhs), rhs);
                 break;
             case tok::div:
-                //lhs = std::make_shared<binop_div>(ret, lhs, rhs);
-                lhs = std::make_shared<binop_apply>(std::make_shared<expr_apply>
+                lhs = std::make_shared<expr_apply>(std::make_shared<expr_apply>
                         (std::make_shared<expr_sym>(ret), lhs), rhs);
                 break;
             case tok::lt:
-                //lhs = std::make_shared<binop_lt>(ret, lhs, rhs);
-                lhs = std::make_shared<binop_apply>(std::make_shared<expr_apply>
+                lhs = std::make_shared<expr_apply>(std::make_shared<expr_apply>
                         (std::make_shared<expr_sym>(ret), lhs), rhs);
                 break;
             case tok::gt:
-                //lhs = std::make_shared<binop_gt>(ret, lhs, rhs);
-                lhs = std::make_shared<binop_apply>(std::make_shared<expr_apply>
+                lhs = std::make_shared<expr_apply>(std::make_shared<expr_apply>
                         (std::make_shared<expr_sym>(ret), lhs), rhs);
                 break;
             case tok::lte:
-                //lhs = std::make_shared<binop_lte>(ret, lhs, rhs);
-                lhs = std::make_shared<binop_apply>(std::make_shared<expr_apply>
+                lhs = std::make_shared<expr_apply>(std::make_shared<expr_apply>
                         (std::make_shared<expr_sym>(ret), lhs), rhs);
                 break;
             case tok::gte:
-                //lhs = std::make_shared<binop_gte>(ret, lhs, rhs);
-                lhs = std::make_shared<binop_apply>(std::make_shared<expr_apply>
+                lhs = std::make_shared<expr_apply>(std::make_shared<expr_apply>
                         (std::make_shared<expr_sym>(ret), lhs), rhs);
                 break;
             case tok::eq:
-                //lhs = std::make_shared<binop_eq>(ret, lhs, rhs);
-                lhs = std::make_shared<binop_apply>(std::make_shared<expr_apply>
+                lhs = std::make_shared<expr_apply>(std::make_shared<expr_apply>
                         (std::make_shared<expr_sym>(ret), lhs), rhs);
                 break;
             default:

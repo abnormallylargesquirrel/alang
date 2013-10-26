@@ -2,6 +2,7 @@
 #include "func_manager.h"
 #include "eval_t.h"
 #include "utils.h"
+#include "hm_main.h"
 
 type make_function(const type& arg, const type& result)
 {
@@ -46,20 +47,36 @@ type definitive(const std::map<type_variable, type>& substitution, const type_va
     return result;
 }
 
+/*void make_definitive(const std::map<std::size_t, type>& substitution, type& x)
+{
+    if(x.which()) {
+        auto& o = boost::get<type_operator>(x);
+        for(auto& i : o)
+            make_definitive(substitution, i);
+    } else {
+        auto v = boost::get<type_variable>(x);
+        x = definitive(substitution, v);
+    }
+}*/
+
 // environment
 environment::environment() : _next_id(0) {}
 std::size_t environment::unique_id() {return _next_id++;}
 
 // fresh_maker
-fresh_maker::fresh_maker(environment& env, const std::set<type_variable>& non_generic,
+fresh_maker::fresh_maker(contexts& ctxs, environment& env, const std::set<type_variable>& non_generic,
         const std::map<type_variable, type>& substitution)
-    : _env(env), _non_generic(non_generic), _substitution(substitution) {}
+    : _ctxs(ctxs), _env(env), _non_generic(non_generic), _substitution(substitution) {}
 
 type_variable fresh_maker::operator()(const type_variable& var)
 {
     if(is_generic(var)) { // generic variables are duplicated, non-generic are shared
         if(!_mappings.count(var)) {
-            _mappings[var] = type_variable(_env.unique_id(), var.begin(), var.end());
+            auto it = _ctxs.find(var.id());
+            if(it != _ctxs.end())
+                _mappings[var] = type_variable(_ctxs, _env.unique_id(), it->second.begin(), it->second.end());
+            else
+                _mappings[var] = type_variable(_env.unique_id());
         }
 
         return _mappings[var];
@@ -105,9 +122,9 @@ bool fresh_maker::is_generic(const type_variable& var) const
 }
 
 // inferencer
-inferencer::inferencer(environment& env, std::map<std::string,
+inferencer::inferencer(contexts& ctxs, environment& env, std::map<std::string,
         std::set<std::string>>& dependencies, func_manager& fm)
-    : _fm(fm), _environment(env), _dependencies(dependencies) {}
+    : _fm(fm), _ctxs(ctxs), _environment(env), _dependencies(dependencies) {}
 type inferencer::operator()(ast&) {return ty_void();}
 type inferencer::operator()(expr_int&) {return ty_integer();}
 type inferencer::operator()(expr_float&) {return ty_float();}
@@ -124,7 +141,7 @@ type inferencer::operator()(expr_sym& id)
     }
 
     auto freshen = _environment[id_name];
-    auto v = fresh_maker(_environment, _non_generic_variables, _substitution);
+    auto v = fresh_maker(_ctxs, _environment, _non_generic_variables, _substitution);
 
     return v(freshen);
 }
@@ -135,27 +152,26 @@ type inferencer::operator()(expr_apply& app)
     auto arg_type = app[1]->infer_type(*this);
 
     /*type_printer pp(std::cout);
-    std::cout << "(in " << _cur_func_name << ") ";
-    std::cout << app.node_str() << ":";
+    std::cout << "(in " << _cur_func_name << ") " << app.node_str() << "\n";
+    std::cout << "    fun_type :: ";
     pp << fun_type;
-    std::cout << "  ";
+    std::cout << "\n    arg_type :: ";
     pp << arg_type;
     std::cout << '\n';*/
 
     type_variable x(_environment.unique_id());
     auto lhs = make_function(arg_type, x);
-    unify(lhs, fun_type, _substitution);
+    unify(lhs, fun_type, _ctxs, _substitution);
 
-    /*std::cout << "lhs: ";
+    /*std::cout << "    lhs :: ";
     pp << lhs;
-    std::cout << "\nfun_type: ";
+    std::cout << "\n    fun_type :: ";
     pp << fun_type;
-    std::cout << "\nreturn type: ";
+    std::cout << "\n    return type :: ";
     auto ret = definitive(_substitution, x);
     pp << ret;
-    std::cout << "\n";
+    std::cout << "\n";*/
 
-    std::cout << std::endl;*/
     return definitive(_substitution, x);
 }
 
@@ -165,34 +181,14 @@ type inferencer::operator()(expr_if& e)
     auto then_type = e[1]->infer_type(*this);
     auto else_type = e[2]->infer_type(*this);
 
-    unify(then_type, else_type, _substitution);
+    unify(then_type, else_type, _ctxs, _substitution);
     return then_type;
-}
-
-type inferencer::operator()(binop_apply& app)
-{
-    auto fun_type = app[0]->infer_type(*this); // infer expr_apply, returns function, elem 0 is second argument to binop
-    auto arg_type = app[1]->infer_type(*this);
-
-    if(fun_type.which()) {
-        auto arg2_type = boost::get<type_operator>(fun_type)[0];
-        unify(arg2_type, arg_type, _substitution); // two arguments to binop are same type
-    } else {
-        throw std::runtime_error("Failed to get argument types for binop - inside application returned type_variable");
-    }
-
-    type_variable x(_environment.unique_id());
-    auto lhs = make_function(arg_type, x);
-
-    unify(lhs, fun_type, _substitution);
-    return definitive(_substitution, x);
 }
 
 type inferencer::operator()(ast_func& f)
 {
     _unbound_vars = false;
     _cur_func_name = f.node_str(); // to build dependency map
-    std::cout << _cur_func_name << std::endl;
     type_variable tmp_type(_environment.unique_id()); // tmp_type is placeholder for function_type
 
     {
@@ -218,10 +214,10 @@ type inferencer::operator()(ast_func& f)
         }
 
         type_variable x(_environment.unique_id());
-        unify(x, function_type, _substitution);
+        unify(x, function_type, _ctxs, _substitution);
         function_type = definitive(_substitution, x);
 
-        unify(function_type, tmp_type, _substitution);
+        unify(function_type, tmp_type, _ctxs, _substitution);
 
     } // destruct scoped_non_generic_variable, make non_generic with same name
 
@@ -240,9 +236,9 @@ type inferencer::operator()(ast_func& f)
     return ret;
 }
 
-type infer_type(const shared_ast& node, environment& env,
+type infer_type(const shared_ast& node, contexts& ctxs, environment& env,
         std::map<std::string, std::set<std::string>>& dependencies, func_manager& fm)
 {
-    inferencer v(env, dependencies, fm);
+    inferencer v(ctxs, env, dependencies, fm);
     return node->infer_type(v);
 }

@@ -19,21 +19,35 @@ typedef boost::variant<
 > type;
 
 typedef std::pair<type, type> constraint;
+typedef std::map<std::size_t, std::set<std::size_t>> contexts;
 
 class type_variable {
 public:
-    type_variable();
-    type_variable(const std::size_t i);
+    type_variable(void) : _id() {}
+    type_variable(const std::size_t i) : _id(i) {}
     template<class Iter>
-    type_variable(const std::size_t i, Iter first, Iter last)
-        : _id(i), _ctx(first, last) {}
-    type_variable(const std::size_t i, std::set<std::size_t>&& ctx);
+    type_variable(contexts& ctxs, const std::size_t i, Iter first, Iter last)
+        : _id(i)
+    {
+        ctxs[i].insert(first, last);
+    }
+    type_variable(contexts& ctxs, const std::size_t i, std::set<std::size_t>&& ctx)
+        : _id(i)
+    {
+        ctxs[i].insert(ctx.begin(), ctx.end());
+    }
 
     std::size_t id() const;
-    void set_id(std::size_t id);
     bool operator==(const type_variable& other) const;
     bool operator!=(const type_variable& other) const;
     operator std::size_t(void) const;
+
+    const std::set<std::size_t>& ctx(void) const
+    {
+        return _ctx;
+    }
+
+    void propagate(contexts& ctxs);
 
     std::set<std::size_t>::iterator begin(void);
     std::set<std::size_t>::iterator end(void);
@@ -41,11 +55,11 @@ public:
     std::set<std::size_t>::iterator begin() const;
     std::set<std::size_t>::iterator end() const;
 
-    template<class Iter>
+    /*template<class Iter>
     void insert(Iter first, Iter last)
     {
         _ctx.insert(first, last);
-    }
+    }*/
 
 private:
     std::size_t _id;
@@ -78,6 +92,8 @@ public:
     std::size_t kind(void) const;
     bool compare_kind(const type_operator& other) const;
     bool operator==(const type_operator& other) const;
+
+    void propagate(contexts& ctxs);
 
 private:
     std::vector<type> _types;
@@ -116,8 +132,8 @@ public:
     void operator()(const type_operator& x, const type_operator& y);
 
     template<class Iter>
-    unifier(Iter first_constraint, Iter last_constraint, std::map<type_variable, type>& substitution)
-        : _stack(first_constraint, last_constraint), _substitution(substitution)
+    unifier(Iter first_constraint, Iter last_constraint, contexts& ctxs, std::map<type_variable, type>& substitution)
+        : _ctxs(ctxs), _stack(first_constraint, last_constraint), _substitution(substitution)
     {
         //add current substitution to the stack
         _stack.insert(_stack.end(), _substitution.begin(), _substitution.end());
@@ -129,11 +145,12 @@ public:
 private:
     void eliminate(const type_variable& x, const type& y);
 
+    contexts& _ctxs;
     std::vector<constraint> _stack;
     std::map<type_variable, type>& _substitution;
 };
 } //detail
 
-void unify(const type& x, const type& y, std::map<type_variable, type>& substitution);
+void unify(const type& x, const type& y, contexts& ctxs, std::map<type_variable, type>& substitution);
 
 #endif

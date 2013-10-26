@@ -1,6 +1,5 @@
 #include "ast.h"
 #include "hm_inference.h"
-//#include "hm_unification.h"
 
 type ast::infer_type(inferencer& inf)
 {
@@ -19,10 +18,6 @@ type expr_sym::infer_type(inferencer& inf)
     return inf(*this);
 }
 type expr_apply::infer_type(inferencer& inf)
-{
-    return inf(*this);
-}
-type binop_apply::infer_type(inferencer& inf)
 {
     return inf(*this);
 }
