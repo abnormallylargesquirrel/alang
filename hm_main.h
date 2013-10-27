@@ -13,8 +13,6 @@ public:
     type_printer& operator()(const type_variable& x)
     {
         _os << '{';
-        //for(const auto& i : x.get_ctx()) {
-        //for(auto i = x.ctx()->begin(); i != x.ctx()->end(); i++) {
         for(const auto& i : x) {
             switch(i) {
                 case classes::Num:

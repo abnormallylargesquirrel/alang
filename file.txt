@@ -1,46 +1,14 @@
-decl printI64(i64 a):void
-#decl void printDbl(dbl a)
+def twice f x:
+    f (f x);
 
-def fib(n):i64
-    fib_iter(1, 0, 0, n)
+def square x:
+    x*x;
 
-def fib_iter(a, b, count, max):i64
-    if count >= max
-        then b
-        else fib_iter(a + b, a, count + 1, max)
+def zfunc2 x y:
+    x*x < y;
 
-def fib_naive(n):i64
-    if n < 2
-        then n
-        else fib_naive(n - 1) + fib_naive(n - 2)
+def func x y:
+    x * x <= y;
 
-def fac(n):i64
-    fac_iter(n, 1, 1)
-
-def fac_iter(a, product, count):i64
-    if count > a
-        then product
-        else fac_iter(a, product * count, count + 1)
-
-def remainder(a, b):i64
-    succ(pred(a)) - ((a / b) * b)
-
-def gcd(a, b):i64
-    if b == 0
-        then a
-        else gcd(b, remainder(a, b))
-
-
-def succ(n):i64
-    n + 1
-
-def pred(n):i64
-    n - 1
-
-def func(n):i64
-    5
-
-printI64(fib(succ(gcd(99*848320483231, 11))))
-printI64(gcd(fib(50), 2*3*5*7*9*11))
-#func(succ)
-#fib_iter(1,0,0,7)
+def comp x:
+    func (square x);

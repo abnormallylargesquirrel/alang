@@ -7,12 +7,12 @@ void lexer::lex_id(tok& ret)
 {
     ret.set_str(std::string(1, static_cast<char>(_last_char)));
     _last_char = _is.get();
-    while(std::isalnum(_last_char) || _last_char == '_') {
+    while(std::isalnum(_last_char) || is_binop(_last_char) || _last_char == '_') {
         ret.set_str(ret.str() + static_cast<char>(_last_char));
         _last_char = _is.get();
     }
 
-    if(ret.str() == "def") {
+    /*if(ret.str() == "def") {
         ret.set_type(tok::def);
     } else if(ret.str() == "decl") {
         ret.set_type(tok::decl);
@@ -22,9 +22,9 @@ void lexer::lex_id(tok& ret)
         ret.set_type(tok::t_then);
     } else if(ret.str() == "else") {
         ret.set_type(tok::t_else);
-    } else {
+    } else {*/
         ret.set_type(tok::id);
-    }
+    //}
 }
 
 void lexer::lex_num(tok& ret, bool is_signed)
@@ -66,7 +66,7 @@ void lexer::lex_num(tok& ret, bool is_signed)
     }*/
 }
 
-void lexer::lex_binop(tok& ret)
+/*void lexer::lex_binop(tok& ret)
 {
     //std::string rstr;
     ret.set_str(std::string(1, static_cast<char>(_last_char)));
@@ -95,12 +95,12 @@ void lexer::lex_binop(tok& ret)
     } else if(ret.str() == "==") {
         ret.set_type(tok::eq);
     }
-    /*if(is_binop(ret.str()))
-        ret.set_type(tok::binop);*/
+    //if(is_binop(ret.str()))
+        //ret.set_type(tok::binop);
     else
         ret.set_type(ret.str()[0]);
         //ret.set_type(_last_char);
-}
+}*/
 
 tok lexer::get_token()
 {
@@ -108,7 +108,7 @@ tok lexer::get_token()
 	while(std::isspace(_last_char))
 		_last_char = _is.get();
 
-	if(std::isalpha(_last_char) || _last_char == '_') {
+	if(std::isalpha(_last_char) || is_binop(_last_char) || _last_char == '_') {
         lex_id(ret);
         return ret;
     }
@@ -129,10 +129,10 @@ tok lexer::get_token()
         return ret;
     }
 
-    if(is_binop(_last_char) || _last_char == '=') { //must come after unary- check
+    /*if(is_binop(_last_char) || _last_char == '=') { //must come after unary- check
         lex_binop(ret);
         return ret;
-    }
+    }*/
 
 	if(_last_char == '#') {
 		while(_last_char != EOF && _last_char != '\n' && _last_char != '\r')

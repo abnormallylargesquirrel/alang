@@ -1,11 +1,11 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include <map>
-#include <sstream>
+//#include <map>
+//#include <sstream>
 #include "ast.h"
 #include "lexer.h"
-#include "func_manager.h"
+//#include "func_manager.h"
 
 class parser {
 public:
@@ -14,7 +14,15 @@ public:
 
 	lexer& lex() {return _lex;}
 
-	shared_expr p_expr_int(void);
+    shared_ast p_int(void);
+    shared_ast p_float(void);
+    shared_ast p_id(void);
+    shared_ast p_sexp_list(void);
+    shared_ast p_expr_list(void);
+    shared_ast p_atom(void);
+    shared_ast p_sexp(void);
+
+	/*shared_expr p_expr_int(void);
 	shared_expr p_expr_float(void);
 	shared_expr p_paren_expr(void);
 	shared_expr p_id_expr(bool single_sym);
@@ -25,7 +33,7 @@ public:
     shared_proto p_decl(void);
 	shared_proto p_proto(void);
     shared_template p_func(void);
-	shared_func p_top_lvl(void);
+	shared_func p_top_lvl(void);*/
 
 private:
 	lexer& _lex;

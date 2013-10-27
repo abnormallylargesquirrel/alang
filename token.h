@@ -19,16 +19,6 @@ public:
 	static const int t_if = -11;
 	static const int t_then = -12;
 	static const int t_else = -13;
-    static const int add = -14;
-    static const int sub = -15;
-    static const int mul = -16;
-    static const int div = -17;
-    static const int lt = -18;
-    static const int gt = -19;
-    static const int lte = -20;
-    static const int gte = -21;
-    static const int eq = -22;
-    //static const int binop = -14;
 
 	tok() : _type(nil) {}
 	tok(int type, std::string str) : _type(type), _str(str) {}
@@ -101,7 +91,7 @@ public:
 		ss << ">";
 		return ss.str();
 	}*/
-    int prec() const
+    /*int prec() const
 	{
 		switch(_type) {
 		case add: return 20;
@@ -115,7 +105,7 @@ public:
 		case eq: return 5;
 		default: return -1;
 		}
-	}
+	}*/
 
 private:
 	int _type;

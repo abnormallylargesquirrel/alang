@@ -47,18 +47,6 @@ type definitive(const std::map<type_variable, type>& substitution, const type_va
     return result;
 }
 
-/*void make_definitive(const std::map<std::size_t, type>& substitution, type& x)
-{
-    if(x.which()) {
-        auto& o = boost::get<type_operator>(x);
-        for(auto& i : o)
-            make_definitive(substitution, i);
-    } else {
-        auto v = boost::get<type_variable>(x);
-        x = definitive(substitution, v);
-    }
-}*/
-
 // environment
 environment::environment() : _next_id(0) {}
 std::size_t environment::unique_id() {return _next_id++;}
@@ -125,12 +113,12 @@ bool fresh_maker::is_generic(const type_variable& var) const
 inferencer::inferencer(contexts& ctxs, environment& env, std::map<std::string,
         std::set<std::string>>& dependencies, func_manager& fm)
     : _fm(fm), _ctxs(ctxs), _environment(env), _dependencies(dependencies) {}
-type inferencer::operator()(ast&) {return ty_void();}
-type inferencer::operator()(expr_int&) {return ty_integer();}
-type inferencer::operator()(expr_float&) {return ty_float();}
-//type operator()(expr_bool&) {return ty_bool();}
 
-type inferencer::operator()(expr_sym& id)
+type inferencer::operator()(ast&) {return ty_void();}
+type inferencer::operator()(ast_int&) {return ty_integer();}
+type inferencer::operator()(ast_float&) {return ty_float();}
+//type inferencer::operator()(ast_bool&) {return ty_bool();}
+type inferencer::operator()(ast_sym& id)
 {
     auto id_name = id.node_str();
     if(!_environment.count(id_name))
@@ -146,67 +134,87 @@ type inferencer::operator()(expr_sym& id)
     return v(freshen);
 }
 
-type inferencer::operator()(expr_apply& app)
+type inferencer::infer_apply(ast_cons& app)
 {
-    auto fun_type = app[0]->infer_type(*this); // might infer types more than once if app[0] is the function node
-    auto arg_type = app[1]->infer_type(*this);
+    if(!app.cdr()) {
+        std::cout << "apply err 0" << std::endl;
+        if(app.car()) {
+            std::cout << "apply err 1" << std::endl;
+            return app.car()->infer_type(*this);
+        } else
+            throw std::runtime_error("No available nodes in infer_apply");
+    }
 
-    /*type_printer pp(std::cout);
-    std::cout << "(in " << _cur_func_name << ") " << app.node_str() << "\n";
-    std::cout << "    fun_type :: ";
-    pp << fun_type;
-    std::cout << "\n    arg_type :: ";
-    pp << arg_type;
-    std::cout << '\n';*/
+    std::vector<shared_ast> args;
+    std::vector<type> arg_types;
+
+    auto fun_type = app.car()->infer_type(*this); // first call here causes issues (Label ERR)
+    //auto arg_type = app.cdr()->infer_type(*this);
+    sexp::map_effect([&](const shared_ast& a) {
+            args.push_back(a);
+            }, app.cdr());
+
+    for(const auto& i : args)
+        arg_types.push_back(i->infer_type(*this));
+
+    std::reverse(arg_types.begin(), arg_types.end());
 
     type_variable x(_environment.unique_id());
-    auto lhs = make_function(arg_type, x);
-    unify(lhs, fun_type, _ctxs, _substitution);
+    type lhs = x;
+    //type lhs = make_function(arg_type, x);
 
-    /*std::cout << "    lhs :: ";
-    pp << lhs;
-    std::cout << "\n    fun_type :: ";
-    pp << fun_type;
-    std::cout << "\n    return type :: ";
-    auto ret = definitive(_substitution, x);
-    pp << ret;
-    std::cout << "\n";*/
+    for(auto& i : arg_types)
+        lhs = make_function(i, lhs);
+
+    unify(lhs, fun_type, _ctxs, _substitution);
 
     return definitive(_substitution, x);
 }
 
-type inferencer::operator()(expr_if& e)
+type inferencer::infer_if(ast_cons& a)
 {
-    auto cond_type = e[0]->infer_type(*this);
-    auto then_type = e[1]->infer_type(*this);
-    auto else_type = e[2]->infer_type(*this);
+    if(!a.cdr())
+        throw std::runtime_error("'if' expression missing condition");
+    if(!a.cdr()->cdr())
+        throw std::runtime_error("'if' expression missing then expression");
+    if(!a.cdr()->cdr()->cdr())
+        throw std::runtime_error("'if' expression missing else expression");
+
+    auto cond_type = a.cdr()->infer_type(*this);
+    auto then_type = a.cdr()->cdr()->infer_type(*this);
+    auto else_type = a.cdr()->cdr()->cdr()->infer_type(*this);
 
     unify(then_type, else_type, _ctxs, _substitution);
     return then_type;
 }
 
-type inferencer::operator()(ast_func& f)
+type inferencer::infer_func(ast_cons& f)
 {
     _unbound_vars = false;
-    _cur_func_name = f.node_str(); // to build dependency map
-    type_variable tmp_type(_environment.unique_id()); // tmp_type is placeholder for function_type
+    _cur_func_name = sexp::get_func_name(f);
+    type_variable tmp_type(_environment.unique_id());
 
     {
-        scoped_non_generic_variable ng(*this, f.node_str(), tmp_type);
+        scoped_non_generic_variable ng(*this, sexp::get_func_name(f), tmp_type);
 
         std::vector<type> arg_types;
         std::vector<scoped_non_generic_variable> scope;
-        scope.reserve(static_cast<std::size_t>(f[0]->num_nodes())); // prevent copying, constructor & destructor affect _environment
+        scope.reserve(sexp::get_length(sexp::get_proto(f)) - 1); // number of arguments
 
-        f[0]->for_nodes([&](shared_ast& n) {
-                type_variable arg_type(_environment.unique_id());
-                scope.emplace_back(*this, n->node_str(), arg_type); // each element destructed at end of operator()
-                arg_types.push_back(arg_type);
-                });
+        sexp::map_effect([&](const shared_ast& a) {
+                //if(a->cdr()) {
+                    type_variable arg_type(_environment.unique_id());
+                    if(a->car())
+                        scope.emplace_back(*this, a->car()->node_str(), arg_type);
+                    else
+                        scope.emplace_back(*this, a->node_str(), arg_type);
+                    arg_types.push_back(arg_type);
+                //}
+                }, sexp::get_proto(f)->cdr());
 
-        std::reverse(std::begin(arg_types), std::end(arg_types));
+        std::reverse(arg_types.begin(), arg_types.end());
 
-        auto body_type = f[1]->infer_type(*this);
+        auto body_type = sexp::get_body(f)->infer_type(*this);
         auto function_type = body_type;
 
         for(auto& i : arg_types) {
@@ -218,22 +226,40 @@ type inferencer::operator()(ast_func& f)
         function_type = definitive(_substitution, x);
 
         unify(function_type, tmp_type, _ctxs, _substitution);
-
-    } // destruct scoped_non_generic_variable, make non_generic with same name
+    } // destruct scoped_non_generic_variable
 
     auto ret = definitive(_substitution, tmp_type);
-    _environment[f.node_str()] = ret;
+    _environment[sexp::get_func_name(f)] = ret;
 
     if(!_unbound_vars) {
-        auto it = _dependencies.find(f.node_str());
+        auto it = _dependencies.find(sexp::get_func_name(f));
         if(it != std::end(_dependencies)) {
             for(auto& i : it->second) {
-                _environment[i] = _fm.lookup_template(i)->infer_type(*this);
+                _environment[i] = _fm.lookup_ast_cons(i)->infer_type(*this);
             }
         }
     }
 
     return ret;
+}
+
+type inferencer::operator()(ast_cons& a)
+{
+    if(!a.cdr()) {
+        if(a.car()) {
+            return a.car()->infer_type(*this);
+        } else {
+            throw std::runtime_error("No possible inference method for ast_cons");
+        }
+    } else if(sexp::check_kwd(a, "define")) {
+        return infer_func(a);
+    } else if(sexp::check_kwd(a, "if")) {
+        return infer_if(a);
+    } else {
+        //sexp::rotate_left_list(a);
+        //std::cout << a.node_str() << std::endl;
+        return infer_apply(a);
+    }
 }
 
 type infer_type(const shared_ast& node, contexts& ctxs, environment& env,

@@ -23,8 +23,10 @@ std::set<std::size_t>::iterator type_variable::end() {return _ctx.end();}
 std::set<std::size_t>::iterator type_variable::begin() const {return _ctx.begin();}
 std::set<std::size_t>::iterator type_variable::end() const {return _ctx.end();}
 
+//type_operator::type_operator(const type_operator& other)
+    //: std::vector<type>(other), _types(other._types), _kind(other._kind) {}
 type_operator::type_operator(const type_operator& other)
-    : std::vector<type>(other), _types(other._types), _kind(other._kind) {}
+    : std::vector<type>(other), _kind(other._kind) {}
 type_operator::type_operator(const std::size_t kind) : _kind(kind) {}
 
 type_operator::type_operator(const std::size_t kind, std::initializer_list<type>&& types)
@@ -35,7 +37,7 @@ type_operator::type_operator(type_operator&& other)
 type_operator& type_operator::operator=(const type_operator& other)
 {
     std::vector<type>::operator=(other);
-    _types = other._types;
+    //_types = other._types;
     _kind = other._kind;
     return *this;
 }

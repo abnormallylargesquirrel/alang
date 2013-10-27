@@ -1,13 +1,14 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
-#include <queue>
+#include <cstring>
+//#include <queue>
 #include "ast.h"
 #include "lexer.h"
 #include "parser.h"
 #include "func_manager.h"
-#include "reducer.h"
-#include "jit_engine.h"
+//#include "reducer.h"
+//#include "jit_engine.h"
 #include "utils.h"
 
 #include "hm_inference.h"
@@ -15,18 +16,10 @@
 #include "hm_main.h"
 
 struct main_handler {
-    main_handler(parser& p, ast& root, func_manager& fm)
-        : _p(p), _root(root), _fm(fm), _is_eof(false) {}
+    main_handler(parser& p, func_manager& fm)
+        : _p(p), _fm(fm), _is_eof(false) {}
 
-    void handle_decl(void)
-    {
-        //shared_proto proto = _p.p_decl();
-        std::cout << "Parsed function declaration" << std::endl;
-        //root.add_node(proto);
-        //proto->gen_func(_je);
-    }
-
-    void handle_func(void)
+    /*void handle_func(void)
     {
         auto func = _p.p_func();
 
@@ -37,15 +30,15 @@ struct main_handler {
         //std::cout << "Parsed function definition" << std::endl;
         //root.add_node(func);
         //func->gen_func(_je);
-    }
+    }*/
 
-    void handle_toplvl(void)
+    /*void handle_toplvl(void)
     {
         shared_func toplvl = _p.p_top_lvl();
         //std::cout << "Parsed top level expression" << std::endl;
         _root.add_node(toplvl);
         //toplvl->gen_func(je);
-    }
+    }*/
 
     void operator()(int type)
     {
@@ -53,24 +46,28 @@ struct main_handler {
 		case tok::eof:
 			_is_eof = true;
 			break;
-        case ';':
-            _p.lex().next_token(); // top-level semicolons
-            break;
-		case tok::def:
-			handle_func();
+		case '(':
+            {
+            shared_cons sexp = std::static_pointer_cast<ast_cons>(_p.p_sexp());
+            if(sexp) {
+                if(sexp::check_kwd(*sexp, "define")) {
+                    _fm.set_ast_cons(sexp::get_func_name(*sexp), sexp);
+                }
+            }
+            }
 			break;
-        case tok::decl:
-            handle_decl();
-            break;
 		default:
-			handle_toplvl();
-            break;
+            {
+            std::ostringstream oss("Invalid token: ");
+            oss << _p.lex().la(0).type();
+            throw std::runtime_error(oss.str());
+            }
 		}
     }
 
     parser& _p;
     //jit_engine& _je;
-    ast& _root;
+    //ast& _root;
     func_manager& _fm;
 	bool _is_eof;
 };
@@ -94,28 +91,31 @@ int main(int argc, char **argv)
             dump_module = true;
     }
 
-    std::ifstream ifs("file.txt");
+    std::ifstream ifs("sfile.txt");
     lexer l(ifs);
     parser p(l);
 
     func_manager fm;
-    reducer r(fm);
+    /*reducer r(fm);
 
     llvm::InitializeNativeTarget();
     //jit_engine je(fm); // must follow InitializeNativeTarget()
 
-    ast root;
+    ast root;*/
     contexts ctxs;
     environment env;
     std::map<std::string, std::set<std::string>> dependencies;
     try_infer infer(ctxs, env, dependencies, fm);
 
-    main_handler handler(p, root, fm);
+    main_handler handler(p, fm);
     try
     {
         while(!handler._is_eof) {
             handler(l.la(0).type());
         }
+
+        for(const auto& i : fm)
+            std::cout << i.second->node_str() << std::endl;
 
         //je.run_pm();
         //run(root, je);

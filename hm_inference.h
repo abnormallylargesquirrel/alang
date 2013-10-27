@@ -65,14 +65,23 @@ struct inferencer : boost::static_visitor<type> {
     inferencer(contexts& ctxs, environment& env, std::map<std::string,
             std::set<std::string>>& dependencies, func_manager& fm);
 
-    type operator()(ast&);
+    /*type operator()(ast&);
     type operator()(expr_int&);
     type operator()(expr_float&);
     //type operator()(expr_bool&);
     type operator()(expr_sym& id);
     type operator()(expr_apply& app);
     type operator()(expr_if& e);
-    type operator()(ast_func& f);
+    type operator()(ast_func& f);*/
+    type operator()(ast&);
+    type operator()(ast_int&);
+    type operator()(ast_float&);
+    //type operator()(ast_bool&);
+    type operator()(ast_sym& id);
+    type operator()(ast_cons& id);
+    type infer_apply(ast_cons& app);
+    type infer_func(ast_cons& f);
+    type infer_if(ast_cons& a);
 
     struct scoped_generic { // (and non-generic) remove destructor for non-scoped
         scoped_generic(inferencer& inf, const std::string& name, const type& t)

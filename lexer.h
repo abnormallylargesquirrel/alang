@@ -46,7 +46,7 @@ private:
         _tok_cache.push_back(next_token(false));
     }
     void lex_num(tok& ret, bool is_signed = false);
-    void lex_binop(tok& ret);
+    //void lex_binop(tok& ret);
     void lex_id(tok& ret);
 
     std::ifstream& _is;

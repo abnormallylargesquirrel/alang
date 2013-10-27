@@ -7,9 +7,8 @@
 #include <vector>
 #include <set>
 #include <queue>
-
-class ast;
-class ast_func;
+#include <functional>
+#include "ast_detail.h"
 
 template<class T>
 struct str_to_num {
@@ -22,17 +21,26 @@ struct str_to_num {
 };
 
 bool is_binop(int c);
-bool is_binop(const std::string& s);
-bool is_cmp(int c);
-void print_node(const std::shared_ptr<ast>& node);
+//void print_node(const std::shared_ptr<ast>& node);
 //void print_nodes(std::queue<std::shared_ptr<ast>>& nodes);
-int get_num_args(const std::shared_ptr<ast_func>& f);
+//int get_num_args(const std::shared_ptr<ast_func>& f);
 
 template<class T>
 bool is_unique_vector(const std::vector<T>& v)
 {
     std::set<T> s(v.begin(), v.end());
     return v.size() == s.size();
+}
+
+namespace sexp
+{
+void map_effect(std::function<void(const shared_ast&)> f, shared_ast list);
+std::size_t get_length(const shared_ast& a, std::size_t accum = 1);
+shared_ast get_body(const ast& a);
+shared_ast get_proto(const ast& a);
+std::string get_func_name(const ast& a);
+std::string get_first_str(const ast& a);
+bool check_kwd(const ast& a, const std::string& s);
 }
 
 #endif

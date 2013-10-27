@@ -55,12 +55,6 @@ public:
     std::set<std::size_t>::iterator begin() const;
     std::set<std::size_t>::iterator end() const;
 
-    /*template<class Iter>
-    void insert(Iter first, Iter last)
-    {
-        _ctx.insert(first, last);
-    }*/
-
 private:
     std::size_t _id;
     std::set<std::size_t> _ctx;
@@ -96,7 +90,7 @@ public:
     void propagate(contexts& ctxs);
 
 private:
-    std::vector<type> _types;
+    //std::vector<type> _types;
     std::size_t _kind;
 };
 
