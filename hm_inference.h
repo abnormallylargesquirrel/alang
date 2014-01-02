@@ -13,25 +13,27 @@ class func_manager;
 
 namespace types
 {
-static const int Void = 0;
-static const int Int = 1;
-static const int Float = 2;
-static const int Bool = 3;
-static const int Function = 4;
-static const int Pair = 5;
+static const std::size_t Void = 0;
+static const std::size_t Int = 1;
+static const std::size_t Float = 2;
+static const std::size_t Str = 3;
+static const std::size_t Bool = 4;
+static const std::size_t Function = 5;
+static const std::size_t Pair = 6;
 }
 
-namespace classes
+/*namespace classes
 {
-static const int Eq = 0;
-static const int Num = 1;
-static const int Ord = 2;
-}
+static const std::size_t Eq = 0;
+static const std::size_t Num = 1;
+static const std::size_t Ord = 2;
+}*/
 
 type make_function(const type& arg, const type& result);
 type ty_void(void);
 type ty_integer(void);
 type ty_float(void);
+type ty_str(void);
 type ty_bool(void);
 type ty_pair(const type& first, const type& second);
 type definitive(const std::map<type_variable, type>& substitution, const type_variable& x);
@@ -74,6 +76,7 @@ struct inferencer : boost::static_visitor<type> {
     type operator()(expr_if& e);
     type operator()(ast_func& f);*/
     type operator()(ast&);
+    type operator()(ast_str&);
     type operator()(ast_int&);
     type operator()(ast_float&);
     //type operator()(ast_bool&);

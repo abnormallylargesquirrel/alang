@@ -13,15 +13,17 @@ void type_variable::propagate(contexts& ctxs)
 {
     auto it = ctxs.find(_id);
     if(it != ctxs.end()) {
-        _ctx = it->second;
+        _ctx = it->second.first;
     }
+    // TODO check each of the instantiations are valid under every class constraint (context)
+    // do in call prior to propagate, from hm_main over _ctxs
 }
 
-std::set<std::size_t>::iterator type_variable::begin() {return _ctx.begin();}
-std::set<std::size_t>::iterator type_variable::end() {return _ctx.end();}
+std::set<std::string>::iterator type_variable::begin() {return _ctx.begin();}
+std::set<std::string>::iterator type_variable::end() {return _ctx.end();}
 
-std::set<std::size_t>::iterator type_variable::begin() const {return _ctx.begin();}
-std::set<std::size_t>::iterator type_variable::end() const {return _ctx.end();}
+std::set<std::string>::iterator type_variable::begin() const {return _ctx.begin();}
+std::set<std::string>::iterator type_variable::end() const {return _ctx.end();}
 
 //type_operator::type_operator(const type_operator& other)
     //: std::vector<type>(other), _types(other._types), _kind(other._kind) {}
@@ -100,16 +102,12 @@ bool occurs(const type& haystack, const type_variable& needle)
 
 void unifier::operator()(const type_variable& x, type_variable& y)
 {
-    /*if(x.id() != y.id() || !x.same_ctx(y)) {
-        y.insert(x.begin(), x.end());
-        eliminate(x, y);
-    }*/
     if(x != y) {
         auto it = _ctxs.find(x.id());
         if(it != _ctxs.end()) {
             //auto& s = it->second;
             //_ctxs[y.id()].insert(s.begin(), s.end());
-            _ctxs[y.id()].insert(it->second.begin(), it->second.end());
+            _ctxs[y.id()].first.insert(it->second.first.begin(), it->second.first.end());
         }
         eliminate(x, y);
     }
@@ -120,12 +118,8 @@ void unifier::operator()(const type_variable& x, const type_operator& y)
     if(occurs(y, x))
         throw recursive_unification(x, y);
 
-    /*for(const auto& i : y) {
-        type tx = type(x);
-        type ti = type(i);
-        boost::apply_visitor(*this, tx, ti);
-    }*/
-
+    //x.add_inst(y.kind());
+    _ctxs[x.id()].second.insert(y.kind());
     eliminate(x, y);
 }
 
@@ -134,12 +128,8 @@ void unifier::operator()(const type_operator& x, const type_variable& y)
     if(occurs(x, y))
         throw recursive_unification(y, x);
 
-    /*for(const auto& i : x) {
-        type ty = type(y);
-        type ti = type(i);
-        boost::apply_visitor(*this, ty, ti);
-    }*/
-
+    //y.add_inst(x.kind());
+    _ctxs[y.id()].second.insert(x.kind());
     eliminate(y, x);
 }
 

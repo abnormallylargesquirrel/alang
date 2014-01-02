@@ -24,6 +24,11 @@ type ty_float(void)
     return type_operator(types::Float);
 }
 
+type ty_str(void)
+{
+    return type_operator(types::Str);
+}
+
 type ty_bool(void)
 {
     return type_operator(types::Bool);
@@ -62,7 +67,7 @@ type_variable fresh_maker::operator()(const type_variable& var)
         if(!_mappings.count(var)) {
             auto it = _ctxs.find(var.id());
             if(it != _ctxs.end())
-                _mappings[var] = type_variable(_ctxs, _env.unique_id(), it->second.begin(), it->second.end());
+                _mappings[var] = type_variable(_ctxs, _env.unique_id(), it->second.first.begin(), it->second.first.end());
             else
                 _mappings[var] = type_variable(_env.unique_id());
         }
@@ -115,6 +120,7 @@ inferencer::inferencer(contexts& ctxs, environment& env, std::map<std::string,
     : _fm(fm), _ctxs(ctxs), _environment(env), _dependencies(dependencies) {}
 
 type inferencer::operator()(ast&) {return ty_void();}
+type inferencer::operator()(ast_str&) {return ty_str();}
 type inferencer::operator()(ast_int&) {return ty_integer();}
 type inferencer::operator()(ast_float&) {return ty_float();}
 //type inferencer::operator()(ast_bool&) {return ty_bool();}
@@ -148,7 +154,7 @@ type inferencer::infer_apply(ast_cons& app)
     std::vector<shared_ast> args;
     std::vector<type> arg_types;
 
-    auto fun_type = app.car()->infer_type(*this); // first call here causes issues (Label ERR)
+    auto fun_type = app.car()->infer_type(*this);
     //auto arg_type = app.cdr()->infer_type(*this);
     sexp::map_effect([&](const shared_ast& a) {
             args.push_back(a);
@@ -180,9 +186,9 @@ type inferencer::infer_if(ast_cons& a)
     if(!a.cdr()->cdr()->cdr())
         throw std::runtime_error("'if' expression missing else expression");
 
-    auto cond_type = a.cdr()->infer_type(*this);
-    auto then_type = a.cdr()->cdr()->infer_type(*this);
-    auto else_type = a.cdr()->cdr()->cdr()->infer_type(*this);
+    auto cond_type = a.cdr()->car()->infer_type(*this);
+    auto then_type = a.cdr()->cdr()->car()->infer_type(*this);
+    auto else_type = a.cdr()->cdr()->cdr()->car()->infer_type(*this);
 
     unify(then_type, else_type, _ctxs, _substitution);
     return then_type;

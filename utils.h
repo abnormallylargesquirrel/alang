@@ -12,12 +12,12 @@
 
 template<class T>
 struct str_to_num {
-	T operator()(const std::string& str) {
-		T num;
-		std::stringstream ss(str);
-		ss >> num;
-		return num;
-	}
+    T operator()(const std::string& str) {
+        T num;
+        std::stringstream ss(str);
+        ss >> num;
+        return num;
+    }
 };
 
 bool is_binop(int c);
@@ -34,13 +34,13 @@ bool is_unique_vector(const std::vector<T>& v)
 
 namespace sexp
 {
-void map_effect(std::function<void(const shared_ast&)> f, shared_ast list);
-std::size_t get_length(const shared_ast& a, std::size_t accum = 1);
-shared_ast get_body(const ast& a);
-shared_ast get_proto(const ast& a);
-std::string get_func_name(const ast& a);
-std::string get_first_str(const ast& a);
-bool check_kwd(const ast& a, const std::string& s);
+    void map_effect(std::function<void(const shared_ast&)> f, shared_ast list);
+    std::size_t get_length(const shared_ast& a, std::size_t accum = 1);
+    shared_ast get_body(const ast& a);
+    shared_ast get_proto(const ast& a);
+    std::string get_func_name(const ast& a);
+    std::string get_first_str(const ast& a);
+    bool check_kwd(const ast& a, const std::string& s);
 }
 
 #endif

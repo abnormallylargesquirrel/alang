@@ -5,6 +5,13 @@
 #include "parser.h"
 #include "lexer.h"
 
+shared_ast parser::p_str()
+{
+    auto ret = std::make_shared<ast_str>(_lex.la(0).str());
+    _lex.next_token();
+    return ret;
+}
+
 shared_ast parser::p_int()
 {
 	auto ret = std::make_shared<ast_int>(_lex.la(0).str());
@@ -86,6 +93,7 @@ shared_ast parser::p_expr_list()
 shared_ast parser::p_atom()
 {
 	switch(_lex.la(0).type()) {
+    case tok::literal_str: return p_str();
 	case tok::id: return p_id();
 	case tok::literal_int: return p_int();
     case tok::literal_float: return p_float();

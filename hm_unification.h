@@ -12,6 +12,7 @@
 
 class type_variable;
 class type_operator;
+class type_class;
 
 typedef boost::variant<
     type_variable,
@@ -19,7 +20,42 @@ typedef boost::variant<
 > type;
 
 typedef std::pair<type, type> constraint;
-typedef std::map<std::size_t, std::set<std::size_t>> contexts;
+
+// each type_variable id is a key, contexts is set of all class constraints, second set is all variables used to instatiate
+typedef std::map<std::size_t, std::pair<std::set<std::string>, std::set<std::size_t>>> contexts;
+
+typedef std::map<std::string, type_class> class_env; // maps class name to type_class which describes instances & superclasses
+//typedef std::map<std::string, std::pair<std::size_t, type_class>> class_env;
+
+class type_class {
+public:
+    type_class(std::initializer_list<std::string>&& super, std::initializer_list<std::size_t>&& insts)
+        : _superclasses(super), _instances(insts) {}
+
+    bool is_subclass_of(std::string super) const
+    {
+        return !(std::find(_superclasses.begin(), _superclasses.end(), super) == _superclasses.end());
+    }
+    bool has_type_inst(std::size_t ty) const
+    {
+        return !(std::find(_instances.begin(), _instances.end(), ty) == _instances.end());
+    }
+
+    void add_super(std::string super)
+    {
+        _superclasses.push_back(super);
+    }
+
+    void add_inst(std::size_t inst)
+    {
+        _instances.push_back(inst);
+    }
+
+private:
+    //std::map<std::string, std::size_t
+    std::vector<std::string> _superclasses;
+    std::vector<std::size_t> _instances;
+};
 
 class type_variable {
 public:
@@ -29,12 +65,12 @@ public:
     type_variable(contexts& ctxs, const std::size_t i, Iter first, Iter last)
         : _id(i)
     {
-        ctxs[i].insert(first, last);
+        ctxs[i].first.insert(first, last);
     }
-    type_variable(contexts& ctxs, const std::size_t i, std::set<std::size_t>&& ctx)
+    type_variable(contexts& ctxs, const std::size_t i, std::set<std::string>&& ctx)
         : _id(i)
     {
-        ctxs[i].insert(ctx.begin(), ctx.end());
+        ctxs[i].first.insert(ctx.begin(), ctx.end());
     }
 
     std::size_t id() const;
@@ -42,22 +78,30 @@ public:
     bool operator!=(const type_variable& other) const;
     operator std::size_t(void) const;
 
-    const std::set<std::size_t>& ctx(void) const
+    const std::set<std::string>& ctx(void) const
     {
         return _ctx;
     }
 
+    /*void add_inst(std::size_t n)
+    {
+        _check_insts.insert(n);
+    }*/
+
     void propagate(contexts& ctxs);
+    void check_insts(const class_env& ce);
 
-    std::set<std::size_t>::iterator begin(void);
-    std::set<std::size_t>::iterator end(void);
+    std::set<std::string>::iterator begin(void);
+    std::set<std::string>::iterator end(void);
 
-    std::set<std::size_t>::iterator begin() const;
-    std::set<std::size_t>::iterator end() const;
+    std::set<std::string>::iterator begin() const;
+    std::set<std::string>::iterator end() const;
 
 private:
     std::size_t _id;
-    std::set<std::size_t> _ctx;
+    std::set<std::string> _ctx;
+    //std::vector<std::size_t> _check_insts;
+    std::set<std::size_t> _check_insts;
 };
 
 class type_operator : private std::vector<type> {
@@ -88,6 +132,7 @@ public:
     bool operator==(const type_operator& other) const;
 
     void propagate(contexts& ctxs);
+    void check_insts(const class_env& ce);
 
 private:
     //std::vector<type> _types;
@@ -126,7 +171,8 @@ public:
     void operator()(const type_operator& x, const type_operator& y);
 
     template<class Iter>
-    unifier(Iter first_constraint, Iter last_constraint, contexts& ctxs, std::map<type_variable, type>& substitution)
+    unifier(Iter first_constraint, Iter last_constraint, contexts& ctxs,
+            std::map<type_variable, type>& substitution)
         : _ctxs(ctxs), _stack(first_constraint, last_constraint), _substitution(substitution)
     {
         //add current substitution to the stack

@@ -1,6 +1,7 @@
 EXE=alang
 #OBJECTS=utils.o lexer.o parser.o func_manager.o reducer.o alib.o alang.o
-OBJECTS=utils.o lexer.o parser.o func_manager.o reducer.o alib.o ast.o hm_inference.o hm_unification.o alang.o
+#OBJECTS=utils.o lexer.o parser.o func_manager.o reducer.o alib.o ast.o hm_inference.o hm_unification.o alang.o
+OBJECTS=utils.o lexer.o parser.o ast.o hm_main.o hm_inference.o hm_unification.o alang.o
 #OBJECTS=utils.o lexer.o parser.o jit_engine.o func_manager.o alib.o alang.o
 
 LLVM_CONFIG=/home/alan/llvm/build/Release+Asserts/bin/llvm-config

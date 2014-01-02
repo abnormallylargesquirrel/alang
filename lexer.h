@@ -36,18 +36,16 @@ public:
 
         return _tok_cache[n - 1];
     }
-	//const tok& cur_tok(void) const {return _cur_tok;}
 
 private:
 	tok get_token(void);
     void cache_token(void)
     {
-        //tok tmp = next_token(false);
         _tok_cache.push_back(next_token(false));
     }
-    void lex_num(tok& ret, bool is_signed = false);
-    //void lex_binop(tok& ret);
+    void lex_str(tok& ret);
     void lex_id(tok& ret);
+    void lex_num(tok& ret, bool is_signed = false);
 
     std::ifstream& _is;
     std::deque<tok> _tok_cache;

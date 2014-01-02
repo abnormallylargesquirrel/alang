@@ -19,6 +19,7 @@ public:
 	static const int t_if = -11;
 	static const int t_then = -12;
 	static const int t_else = -13;
+	static const int literal_str = -14;
 
 	tok() : _type(nil) {}
 	tok(int type, std::string str) : _type(type), _str(str) {}
