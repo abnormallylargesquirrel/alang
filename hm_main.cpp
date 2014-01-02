@@ -1,84 +1,91 @@
 #include "hm_main.h"
 #include "func_manager.h"
 
-type_printer::type_printer(std::ostream& os)
-    : _os(os), _next_name('a'), _print_parens(false) {}
-
-type_printer& type_printer::operator()(const type_variable& x)
+std::string str_of_type(const type& x)
 {
-    _os << '{';
-    for(const auto& i : x) {
-        _os << i << " ";
-    }
+    std::ostringstream os;
+    char next_name = 'a';
+    bool print_parens = false;
+    std::map<std::size_t, std::string> names;
+    std::function<void(const type&)> of_type;
 
-    if(!_names.count(x.id())) {
-        std::ostringstream os;
-        os << _next_name++;
-        _names[x.id()] = os.str();
-    }
+    auto of_tyvar = [&](const type_variable& _x) {
+        os << '{';
+        for(const auto& i : _x) {
+            os << i << " ";
+        }
 
-    _os << _names[x.id()] << '}';
-    return *this;
-}
+        if(!names.count(_x.id())) {
+            std::ostringstream oss;
+            oss << next_name++;
+            names[_x.id()] = oss.str();
+        }
 
-type_printer& type_printer::operator()(const type_operator& x)
-{
-    switch(x.kind()) {
-        case types::Void:
-            _os << "Void";
-            break;
-        case types::Int:
-            _os << "Int";
-            break;
-        case types::Bool:
-            _os << "Bool";
-            break;
-        case types::Float:
-            _os << "Float";
-            break;
-        case types::Str:
-            _os << "String";
-            break;
-        case types::Function:
-            {
-            if(_print_parens)
-                _os << "(";
+        os << names[_x.id()] << '}';
+    };
 
-            bool tmp = _print_parens;
+    auto of_tyop = [&](const type_operator& _x) {
+        switch(_x.kind()) {
+            case types::Void:
+                os << "Void";
+                break;
+            case types::Int:
+                os << "Int";
+                break;
+            case types::Bool:
+                os << "Bool";
+                break;
+            case types::Float:
+                os << "Float";
+                break;
+            case types::Str:
+                os << "String";
+                break;
+            case types::Function:
+                {
+                if(print_parens)
+                    os << "(";
 
-            _print_parens = true;
-            *this << x[0];
-            _os << " -> ";
-            _print_parens = false;
-            *this << x[1];
+                bool tmp = print_parens;
 
-            if(tmp)
-                _os << ")";
-            break;
-            }
-        case types::Pair:
-            _os << "(";
-            *this << x[0];
-            _os << " * ";
-            *this << x[1];
-            _os << ")";
-            break;
-        default:
-            break;
-    }
+                print_parens = true;
+                //*this << x[0];
+                of_type(_x[0]);
+                os << " -> ";
+                print_parens = false;
+                //*this << x[1];
+                of_type(_x[1]);
 
-    return *this;
-}
+                if(tmp)
+                    os << ")";
+                break;
+                }
+            case types::Pair:
+                os << "(";
+                //*this << x[0];
+                of_type(_x[0]);
+                os << " * ";
+                //*this << x[1];
+                of_type(_x[1]);
+                os << ")";
+                break;
+            default:
+                break;
+        }
+    };
 
-type_printer& type_printer::operator<<(const type& x)
-{
-    return boost::apply_visitor(*this, x);
-}
+    of_type = [&](const type& _x) {
+        if(_x.which()) {
+            const auto& op = boost::get<type_operator>(_x);
+            of_tyop(op);
+        } else {
+            const auto& var = boost::get<type_variable>(_x);
+            of_tyvar(var);
+        }
+    };
 
-type_printer& type_printer::operator<<(std::ostream& (*fp)(std::ostream&))
-{
-    fp(_os);
-    return *this;
+    of_type(x);
+    return os.str();
 }
 
 try_infer::try_infer(contexts& ctxs, environment& e,
@@ -125,15 +132,13 @@ void try_infer::operator()(const shared_ast& n) const
     catch(const recursive_unification& e)
     {
         std::cerr << n << " : ";
-        type_printer pp(std::cerr);
-        pp << e.what() << ": " << e.x << " in " << e.y << std::endl;
+        std::cerr << e.what() << ": " << str_of_type(e.x) << " in " << str_of_type(e.y) << std::endl;
         throw std::runtime_error("Type error");
     }
     catch(const type_mismatch& e)
     {
         std::cerr << n << " : ";
-        type_printer pp(std::cerr);
-        pp << e.what() << ": " << e.x << " != " << e.y << std::endl;
+        std::cerr << e.what() << ": " << str_of_type(e.x) << " != " << str_of_type(e.y) << std::endl;
         throw std::runtime_error("Type error");
     }
     catch(const std::runtime_error& e)

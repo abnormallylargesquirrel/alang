@@ -5,40 +5,17 @@
 
 class func_manager;
 
-class type_printer : public boost::static_visitor<type_printer&> {
-public:
-    type_printer(std::ostream& os);
-    type_printer& operator()(const type_variable& x);
-    type_printer& operator()(const type_operator& x);
-
-    type_printer& operator<<(const type& x);
-    type_printer& operator<<(std::ostream& (*fp)(std::ostream&));
-
-    template<class T>
-    type_printer& operator<<(const T& x)
-    {
-        _os << x;
-        return *this;
-    }
-
-private:
-    std::ostream& _os;
-    std::map<std::size_t, std::string> _names;
-    char _next_name;
-    bool _print_parens;
-};
+std::string str_of_type(const type& x);
 
 inline std::ostream& operator<<(std::ostream& os, const type_variable& x)
 {
-    type_printer pp(os);
-    pp << type(x);
+    os << str_of_type(type(x));
     return os;
 }
 
 inline std::ostream& operator<<(std::ostream& os, const type_operator& x)
 {
-    type_printer pp(os);
-    pp << type(x);
+    os << str_of_type(type(x));
     return os;
 }
 
@@ -57,6 +34,5 @@ struct try_infer {
     func_manager& _fm;
     class_env _ce;
 };
-
 
 #endif
