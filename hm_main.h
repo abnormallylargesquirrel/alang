@@ -19,6 +19,7 @@ inline std::ostream& operator<<(std::ostream& os, const type_operator& x)
     return os;
 }
 
+// TODO do real dependency analysis
 struct try_infer {
     try_infer(contexts& ctxs, environment& e,
             std::map<std::string, std::set<std::string>>& dependencies,

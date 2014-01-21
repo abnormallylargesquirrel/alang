@@ -92,13 +92,13 @@ shared_ast parser::p_expr_list()
 
 shared_ast parser::p_atom()
 {
-	switch(_lex.la(0).type()) {
-    case tok::literal_str: return p_str();
-	case tok::id: return p_id();
-	case tok::literal_int: return p_int();
-    case tok::literal_float: return p_float();
-    default: throw std::runtime_error("Failed to parse atom");
-	}
+    switch(_lex.la(0).type()) {
+        case tok::literal_str: return p_str();
+        case tok::id: return p_id();
+        case tok::literal_int: return p_int();
+        case tok::literal_float: return p_float();
+        default: throw std::runtime_error("Failed to parse atom");
+    }
 }
 
 shared_ast parser::p_sexp()

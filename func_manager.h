@@ -4,8 +4,6 @@
 #include <map>
 #include <memory>
 #include <llvm/IR/Function.h>
-//#include "eval_t.h"
-//#include "ast.h"
 
 class ast;
 class ast_cons;

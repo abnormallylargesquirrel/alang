@@ -34,19 +34,16 @@ namespace sexp
         return get_length(a->cdr(), accum + 1);
     }
 
-    // ensure a is func
     shared_ast get_body(const ast& a)
     {
         return a.cdr()->cdr();
     }
 
-    // ensure a is func
     shared_ast get_proto(const ast& a)
     {
         return a.cdr()->car();
     }
 
-    // ensure a is func
     std::string get_func_name(const ast& a)
     {
         auto ret = get_proto(a);
@@ -64,12 +61,40 @@ namespace sexp
         return a.car()->node_str();
     }
 
-    bool check_kwd(const ast& a, const std::string& s)
+    bool check_first_str(const ast& a, const std::string& s)
     {
         if(a.tag() != tags::tcons)
             return false;
 
         return get_first_str(a) == s;
+    }
+
+    bool is_function(const ast_cons& a)
+    {
+        return check_first_str(a, "define");
+    }
+
+    func_err validate_func(const ast_cons& a)
+    {
+        if(!a.car()) // define form
+            return func_err::INVALID_CAR;
+
+        auto cdr = a.cdr();
+        if(!cdr) // proto & body
+            return func_err::INVALID_CDR;
+
+        auto proto = cdr->car();
+        if(!proto)
+            return func_err::INVALID_PROTO;
+
+        auto body = cdr->cdr();
+        if(!body)
+            return func_err::INVALID_BODY;
+
+        if(!check_first_str(a, "define"))
+            return func_err::INVALID_FIRST_STR;
+
+        return func_err::VALID;
     }
 }
 

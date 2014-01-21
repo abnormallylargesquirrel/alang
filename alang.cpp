@@ -1,8 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
-#include <cstring>
-//#include <queue>
+//#include <cstring>
 #include "ast.h"
 #include "lexer.h"
 #include "parser.h"
@@ -15,8 +14,9 @@
 #include "hm_unification.h"
 #include "hm_main.h"
 
-struct main_handler {
-    main_handler(parser& p, func_manager& fm)
+class parse_handler {
+public:
+    parse_handler(parser& p, func_manager& fm)
         : _p(p), _fm(fm), _is_eof(false) {}
 
     /*void handle_func(void)
@@ -47,14 +47,7 @@ struct main_handler {
                 _is_eof = true;
                 break;
             case '(':
-                {
-                    shared_cons sexp = std::static_pointer_cast<ast_cons>(_p.p_sexp());
-                    if(sexp) {
-                        if(sexp::check_kwd(*sexp, "define")) {
-                            _fm.set_ast_cons(sexp::get_func_name(*sexp), sexp);
-                        }
-                    }
-                }
+                handle_next_sexp();
                 break;
             default:
                 {
@@ -63,6 +56,23 @@ struct main_handler {
                     throw std::runtime_error(oss.str());
                 }
         }
+    }
+
+    bool eof() const {return _is_eof;}
+
+private:
+    void handle_next_sexp()
+    {
+        auto sexp = _p.p_sexp();
+        if(sexp && sexp->tag() == tags::tcons) {
+            auto sexp_cons = std::static_pointer_cast<ast_cons>(sexp);
+            if(sexp::is_function(*sexp_cons)) {
+                if(sexp::validate_func(*sexp_cons) == sexp::func_err::VALID) {
+                    _fm.set_ast_cons(sexp::get_func_name(*sexp_cons), sexp_cons);
+                }
+            }
+        }
+
     }
 
     parser& _p;
@@ -120,10 +130,10 @@ int main(int argc, char **argv)
     init_class_env(ce);
     try_infer infer(ctxs, env, dependencies, fm, ce);
 
-    main_handler handler(p, fm);
+    parse_handler handler(p, fm);
     try
     {
-        while(!handler._is_eof) {
+        while(!handler.eof()) {
             handler(l.la(0).type());
         }
 

@@ -80,6 +80,7 @@ inline std::ostream& operator<<(std::ostream& os, const shared_ast& n)
 
 class ast_cons : public ast {
     public:
+        // what are these names?
         ast_cons(const shared_ast& e0, const shared_ast& e1)
             : ast(";cons", tags::tcons)
         {

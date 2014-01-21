@@ -49,11 +49,9 @@ std::string str_of_type(const type& x)
                 bool tmp = print_parens;
 
                 print_parens = true;
-                //*this << x[0];
                 of_type(_x[0]);
                 os << " -> ";
                 print_parens = false;
-                //*this << x[1];
                 of_type(_x[1]);
 
                 if(tmp)
@@ -62,10 +60,8 @@ std::string str_of_type(const type& x)
                 }
             case types::Pair:
                 os << "(";
-                //*this << x[0];
                 of_type(_x[0]);
                 os << " * ";
-                //*this << x[1];
                 of_type(_x[1]);
                 os << ")";
                 break;

@@ -13,14 +13,6 @@ class parser {
      : _lex(lex) {_lex.next_token();}
 
     lexer& lex() {return _lex;}
-
-    shared_ast p_str(void);
-    shared_ast p_int(void);
-    shared_ast p_float(void);
-    shared_ast p_id(void);
-    shared_ast p_sexp_list(void);
-    shared_ast p_expr_list(void);
-    shared_ast p_atom(void);
     shared_ast p_sexp(void);
 
     /*shared_expr p_expr_int(void);
@@ -37,6 +29,13 @@ class parser {
       shared_func p_top_lvl(void);*/
 
  private:
+    shared_ast p_str(void);
+    shared_ast p_int(void);
+    shared_ast p_float(void);
+    shared_ast p_id(void);
+    shared_ast p_sexp_list(void);
+    shared_ast p_expr_list(void);
+    shared_ast p_atom(void);
     lexer& _lex;
     //std::shared_ptr<func_manager> _fm;
     //func_manager& _fm;

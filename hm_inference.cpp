@@ -257,9 +257,9 @@ type inferencer::operator()(ast_cons& a)
         } else {
             throw std::runtime_error("No possible inference method for ast_cons");
         }
-    } else if(sexp::check_kwd(a, "define")) {
+    } else if(sexp::check_first_str(a, "define")) {
         return infer_func(a);
-    } else if(sexp::check_kwd(a, "if")) {
+    } else if(sexp::check_first_str(a, "if")) {
         return infer_if(a);
     } else {
         //sexp::rotate_left_list(a);

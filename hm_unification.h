@@ -142,7 +142,7 @@ private:
 struct type_mismatch : std::runtime_error {
     type_mismatch(const type& xx, const type& yy)
         : std::runtime_error("type mismatch"), x(xx), y(yy) {}
-    virtual ~type_mismatch(void) throw() {}
+    //virtual ~type_mismatch(void) throw() {}
 
     type x;
     type y;
@@ -152,7 +152,7 @@ struct recursive_unification : std::runtime_error {
     recursive_unification(const type& xx, const type& yy)
         : std::runtime_error("recursive unification"), x(xx), y(yy) {}
 
-    virtual ~recursive_unification(void) throw() {}
+    //virtual ~recursive_unification(void) throw() {}
 
     type x;
     type y;

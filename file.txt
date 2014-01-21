@@ -10,5 +10,8 @@ def zfunc2 x y:
 def func x y:
     x * x <= y;
 
+def func2:
+    (func 1) 2;
+
 def comp x:
     func (square x);
