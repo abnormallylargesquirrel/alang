@@ -1,3 +1,5 @@
+#include <sstream>
+#include <utility>
 #include "hm_unification.h"
 
 std::size_t type_variable::id() const {return _id;}
@@ -17,6 +19,17 @@ void type_variable::propagate(contexts& ctxs)
     }
     // TODO check each of the instantiations are valid under every class constraint (context)
     // do in call prior to propagate, from hm_main over _ctxs
+}
+
+void type_variable::collect_tyvar_names(char& next_name, std::map<std::size_t, std::pair<std::string, std::string>>& names) const
+{
+    std::ostringstream oss;
+    for(const auto& i : *this) {
+        oss << i << " ";
+    }
+
+    if(!names.count(_id))
+        names[_id] = std::make_pair(std::string(1, next_name++), oss.str());
 }
 
 std::set<std::string>::iterator type_variable::begin() {return _ctx.begin();}
@@ -64,6 +77,19 @@ void type_operator::propagate(contexts& ctxs)
         } else {
             auto& tv = boost::get<type_variable>(*it);
             tv.propagate(ctxs);
+        }
+    }
+}
+
+void type_operator::collect_tyvar_names(char& next_name, std::map<std::size_t, std::pair<std::string, std::string>>& names) const
+{
+    for(auto it = begin(); it != end(); it++) {
+        if(it->which()) {
+            auto& op = boost::get<type_operator>(*it);
+            op.collect_tyvar_names(next_name, names);
+        } else {
+            auto& tv = boost::get<type_variable>(*it);
+            tv.collect_tyvar_names(next_name, names);
         }
     }
 }

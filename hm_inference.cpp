@@ -39,6 +39,11 @@ type ty_pair(const type& first, const type& second)
     return type_operator(types::Pair, {first, second});
 }
 
+type ty_list(const type& t)
+{
+    return type_operator(types::List, {t});
+}
+
 type definitive(const std::map<type_variable, type>& substitution, const type_variable& x)
 {
     type result = x;
@@ -204,7 +209,7 @@ type inferencer::infer_func(ast_cons& f)
         scoped_non_generic_variable ng(*this, sexp::get_func_name(f), tmp_type);
 
         std::vector<type> arg_types;
-        std::vector<scoped_non_generic_variable> scope;
+        std::vector<scoped_non_generic_variable> scope;//(sexp::get_length(sexp::get_proto(f)) - 1);
         scope.reserve(sexp::get_length(sexp::get_proto(f)) - 1); // number of arguments
 
         sexp::map_effect([&](const shared_ast& a) {

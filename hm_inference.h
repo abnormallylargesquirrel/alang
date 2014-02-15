@@ -20,6 +20,7 @@ static const std::size_t Str = 3;
 static const std::size_t Bool = 4;
 static const std::size_t Function = 5;
 static const std::size_t Pair = 6;
+static const std::size_t List = 7;
 }
 
 /*namespace classes
@@ -36,6 +37,7 @@ type ty_float(void);
 type ty_str(void);
 type ty_bool(void);
 type ty_pair(const type& first, const type& second);
+type ty_list(const type& t);
 type definitive(const std::map<type_variable, type>& substitution, const type_variable& x);
 
 class environment : public std::map<std::string, type> {
@@ -123,6 +125,8 @@ struct inferencer : boost::static_visitor<type> {
             _non_generic(inf._non_generic_variables),
             _erase_me(_non_generic.insert(var))
         {}
+
+        //scoped_non_generic_variable(const scoped_non_generic_variable& other) = delete;
 
         ~scoped_non_generic_variable()
         {

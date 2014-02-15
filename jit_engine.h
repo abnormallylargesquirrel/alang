@@ -111,8 +111,8 @@ public:
         _lookup_var.clear();
     }
 
-    jit_engine(const jit_engine& cp) = delete;
-    const jit_engine& operator=(const jit_engine& rhs) = delete;
+    jit_engine(const jit_engine& other) = delete;
+    const jit_engine& operator=(const jit_engine& other) = delete;
 private:
     std::unique_ptr<llvm::Module> _module;
     llvm::IRBuilder<> _builder;

@@ -89,6 +89,7 @@ public:
     }*/
 
     void propagate(contexts& ctxs);
+    void collect_tyvar_names(char& next_name, std::map<std::size_t, std::pair<std::string, std::string>>& names) const;
     void check_insts(const class_env& ce);
 
     std::set<std::string>::iterator begin(void);
@@ -132,6 +133,7 @@ public:
     bool operator==(const type_operator& other) const;
 
     void propagate(contexts& ctxs);
+    void collect_tyvar_names(char& next_name, std::map<std::size_t, std::pair<std::string, std::string>>& names) const;
     void check_insts(const class_env& ce);
 
 private:

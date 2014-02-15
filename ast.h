@@ -14,6 +14,7 @@
 //#include "func_manager.h"
 //#include "eval_t.h"
 #include "ast_detail.h"
+#include "utils.h"
 
 struct inferencer;
 
@@ -82,21 +83,21 @@ class ast_cons : public ast {
     public:
         // what are these names?
         ast_cons(const shared_ast& e0, const shared_ast& e1)
-            : ast(";cons", tags::tcons)
+            : ast(COMMENT_STR(cons), tags::tcons)
         {
             set_car(e0);
             set_cdr(e1);
         }
 
         ast_cons(shared_ast&& e0, shared_ast&& e1)
-            : ast(";cons", tags::tcons)
+            : ast(COMMENT_STR(cons), tags::tcons)
         {
             set_car(std::move(e0));
             set_cdr(std::move(e1));
         }
 
         ast_cons(const ast& other)
-            : ast(";cons", tags::tcons)
+            : ast(COMMENT_STR(cons), tags::tcons)
         {
             set_car(other.car());
             set_cdr(other.cdr());

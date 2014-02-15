@@ -155,7 +155,7 @@ int main(int argc, char **argv)
         //for(auto& i : env)
         //std::cout << i.first << " " << i.second << std::endl;
         for(auto& i : fm)
-            std::cout << i.first << " " << env[i.first] << std::endl;
+            std::cout << i.first << ": " << env[i.first] << std::endl;
 
         //std::cout << root[0]->node_str() << std::endl;
         //r((*root[0])[1]); // pass expression, not function, returned expression replaces function body

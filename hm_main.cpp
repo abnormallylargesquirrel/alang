@@ -1,3 +1,4 @@
+#include <utility>
 #include "hm_main.h"
 #include "func_manager.h"
 
@@ -6,22 +7,24 @@ std::string str_of_type(const type& x)
     std::ostringstream os;
     char next_name = 'a';
     bool print_parens = false;
-    std::map<std::size_t, std::string> names;
+    // names holds (name of tyvar, string describing type class restrictions)
+    std::map<std::size_t, std::pair<std::string, std::string>> names;
     std::function<void(const type&)> of_type;
 
     auto of_tyvar = [&](const type_variable& _x) {
-        os << '{';
-        for(const auto& i : _x) {
-            os << i << " ";
-        }
+//        os << '{';
+//
+//        if(!names.count(_x.id())) {
+//            // oss builds description of type class restrictions
+//            std::ostringstream oss;
+//            for(const auto& i : _x) {
+//                oss << i << " ";
+//            }
+//            names[_x.id()] = std::to_string(next_name++);
+//        }
 
-        if(!names.count(_x.id())) {
-            std::ostringstream oss;
-            oss << next_name++;
-            names[_x.id()] = oss.str();
-        }
-
-        os << names[_x.id()] << '}';
+//        os << names[_x.id()] << '}';
+        os << std::get<0>(names[_x.id()]);
     };
 
     auto of_tyop = [&](const type_operator& _x) {
@@ -61,13 +64,32 @@ std::string str_of_type(const type& x)
             case types::Pair:
                 os << "(";
                 of_type(_x[0]);
-                os << " * ";
+                os << ", ";
                 of_type(_x[1]);
                 os << ")";
+                break;
+            case types::List:
+                os << "[";
+                of_type(_x[0]);
+                os << "]";
                 break;
             default:
                 break;
         }
+    };
+
+    auto output_names = [&]() {
+        bool print_forall = false;
+        for(const auto& i : names) {
+            auto map_val = std::get<1>(i);
+            auto restrictions_desc = std::get<1>(map_val);
+            if(restrictions_desc.size() > 0) {
+                print_forall = true;
+                os << "(" << restrictions_desc << std::get<0>(map_val) << ")";
+            }
+        }
+        if(print_forall)
+            os << " => ";
     };
 
     of_type = [&](const type& _x) {
@@ -79,6 +101,16 @@ std::string str_of_type(const type& x)
             of_tyvar(var);
         }
     };
+
+    if(x.which()) {
+        const auto& op = boost::get<type_operator>(x);
+        op.collect_tyvar_names(next_name, names);
+        output_names();
+    } else {
+        const auto& var = boost::get<type_variable>(x);
+        var.collect_tyvar_names(next_name, names);
+        output_names();
+    }
 
     of_type(x);
     return os.str();
@@ -115,6 +147,22 @@ try_infer::try_infer(contexts& ctxs, environment& e,
 
     type_variable v8(_ctxs, _env.unique_id(), {"Eq"});
     _env["="] = make_function(v8, make_function(v8, ty_bool()));
+
+    type_variable v9(_ctxs, _env.unique_id(), {});
+    type_variable v10(_ctxs, _env.unique_id(), {});
+    _env["pair"] = make_function(v9, make_function(v10, ty_pair(v9, v10)));
+
+    type_variable v11(_ctxs, _env.unique_id(), {});
+    _env["cons"] = make_function(v11, make_function(ty_list(v11), ty_list(v11)));
+
+    type_variable v12(_ctxs, _env.unique_id(), {});
+    _env["list"] = ty_list(v12);
+
+    type_variable v13(_ctxs, _env.unique_id(), {});
+    _env["head"] = make_function(ty_list(v13), v13);
+
+    type_variable v14(_ctxs, _env.unique_id(), {});
+    _env["tail"] = make_function(ty_list(v14), ty_list(v14));
 
     _env["^"] = make_function(ty_str(), make_function(ty_str(), ty_str()));
 }

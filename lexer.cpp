@@ -113,7 +113,8 @@ tok lexer::get_token()
         return ret;
     }*/
 
-	if(_last_char == ';') {
+	//if(_last_char == ';') {
+    if(_last_char == *COMMENT_STR()) {
 		while(_last_char != EOF && _last_char != '\n' && _last_char != '\r')
 			_last_char = _is.get();
 

@@ -10,6 +10,9 @@
 #include <functional>
 #include "ast_detail.h"
 
+// TODO why
+#define COMMENT_STR(str) (";"#str)
+
 template<class T>
 struct str_to_num {
     T operator()(const std::string& str) {
